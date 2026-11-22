@@ -14,6 +14,8 @@
 
 # testing
 /coverage
+/reports/model-testing/
+/.model-testing/
 
 # next.js
 /.next/

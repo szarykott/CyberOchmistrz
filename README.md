@@ -7,6 +7,9 @@ Local machine needs:
 - **Node.js** (v20+ recommended, matches CI `actions/setup-node@v4` default)
 - **npm** (ships with Node)
 
+Model fuzzing and mutation campaigns require **Node.js 22 or newer**. Their
+dependencies are development-only; the exported application still needs no server.
+
 No global TypeScript install needed — `tsc` runs via `ts-jest` and `next` from `node_modules`.
 
 ## Quick Start
@@ -51,10 +54,13 @@ CyberOchmistrz/
 ├── .agents/skills/domain-glossary/
 │   └── SKILL.md               # Clarify domain terminology and maintain the glossary
 ├── .cursorignore              # Excludes build artifacts from Cursor indexing
-├── .github/workflows/         # CI (test+build on PR) and CD (deploy to gh-pages on master push)
+├── .github/workflows/         # PR checks, standalone model campaigns, and gh-pages deployment
 ├── .vscode/                   # Debug launch configs for Next.js
 ├── docs/                      # Domain documentation and Mermaid entity diagrams
 ├── public/                    # PWA manifest, static SVGs
+├── scripts/
+│   ├── model-testing.mjs      # Standalone campaign CLI, supervision, reports and replay
+│   └── model-testing.test.mjs # CLI lifecycle and reproducer integration tests
 ├── src/
 │   ├── app/                   # Next.js App Router (routes, layouts, pages)
 │   │   ├── layout.tsx         # Root layout: nav bar with links to 3 sections
@@ -86,6 +92,12 @@ CyberOchmistrz/
 │       └── polishDeclension.ts  # Polish grammatical number for units
 ├── test/                      # Jest test suite
 │   ├── AGENTS.md              # Test conventions for AI agents
+│   ├── modelCampaign/
+│   │   ├── properties.ts      # Generators, invariants, command sequences and allocation oracle
+│   │   ├── worker.ts          # Isolated fast-check batch and seed/path replay
+│   │   ├── fuzz.ts            # Jazzer.js restoration and allocation targets
+│   │   └── tsconfig.json      # Compile standalone targets without Next.js
+│   ├── modelProperties.test.ts # Deterministic properties shared with mutation testing
 │   ├── cruiseIntentions.test.ts  # Immutable cruise operations
 │   ├── cruiseRestoration.test.ts # Serialized cruise restoration
 │   └── cruiseUi.test.tsx      # Cruise UI interactions
@@ -93,6 +105,8 @@ CyberOchmistrz/
 ├── package.json
 ├── next.config.ts             # Static export + PWA config
 ├── jest.config.js
+├── jest.model.config.js       # Model test profile excluding cruise UI tests
+├── stryker.config.mjs         # Automated model mutations and checkpoint events
 └── tsconfig.json
 ```
 
@@ -115,6 +129,93 @@ CyberOchmistrz/
 - **jest-theories** — Parameterized test cases
 - **Testing Library + jest-environment-jsdom** — DOM interaction tests
 - **ESLint 9 + eslint-config-next** — Linting
+- **fast-check** — Property tests, generated operation sequences, and counterexample shrinking
+- **Jazzer.js** — Coverage-guided fuzzing with persistent input corpora
+- **StrykerJS + Jest runner** — Automated mutation testing of the model
+
+---
+
+## Standalone Model Testing
+
+All campaigns run through the CLI without an agent, application server, browser,
+or external reporting service. Use Node.js 22+ and install with `npm ci`.
+The supervisor caps each Node process heap at 1 GiB. Stryker runs two workers;
+allow several GiB of available RAM. Linux is the CI platform; other operating
+systems have not been verified for the native Jazzer.js dependency.
+
+```bash
+npm run test:model:quick                          # Existing non-UI tests plus bounded properties
+npm run test:model -- --engine properties --seconds 60
+npm run test:model -- --engine fuzz --seconds 60
+npm run test:model -- --engine mutation --seconds 120
+npm run test:model -- --seconds 3600               # All three engines, up to one hour EACH
+npm run test:model -- --engine mutation --seconds 120 --mutate src/model/recipieData.ts
+npm run test:model -- --replay reports/model-testing/<run>/<finding>.json
+npm run test:model:cli                            # Lifecycle, timeout, finding and replay checks
+npm run test:model -- --help
+```
+
+`--seconds` accepts 1–86400 seconds **per engine**, including engine startup.
+Compilation has a separate two-minute limit. Engines run sequentially in the
+order properties, fuzz, mutation. Stryker finishes early when all mutants have
+been processed. Long campaigns are separate from `npm test`.
+
+Property campaigns rotate restoration, invalid-input validation, shopping-list
+aggregation, allocation, diet coverage, and cruise operation sequences. Each
+batch uses a new seed and up to 100 examples. The allocation oracle exhaustively
+searches small assignments independently of Dinic's algorithm. Shopping-list
+checks use exact bounded integers, so rounding does not create false positives.
+Expected validation rejections are caught only at the restoration boundary.
+
+Jazzer.js instruments compiled model code and alternates restoration and
+allocation targets in batches of at most 30 seconds. Restoration starts with
+valid generated exports and malformed JSON. Its corpus persists under
+`.model-testing/corpus/` between campaigns. Findings trigger a new process;
+the campaign continues and groups repeated signatures. Fast-check shrinks
+failures before reporting. Jazzer crash minimization is attempted for new
+findings when the remaining budget permits; otherwise the original input is
+retained and `minimized` is false. A saved input is a reproducer, not proof that
+it is globally minimal or that every distinct defect has been found.
+
+The CLI prints the report directory. Each run creates:
+
+- `README.md` and `summary.json`: commit, dirty-worktree flag, tool versions,
+  parameters, execution counts, statuses, and an index of findings.
+- `property-*.json`: seed, shrink path, counterexample, assertion stack, and replay command.
+- `fuzz-*.json`, input artifacts, and logs: target, original or minimized input,
+  failure signature, and replay command.
+- `mutation/mutation.html` and `mutation/mutation.json` after a completed Stryker
+  run. `mutation/events/` contains results written during the run, including
+  individual mutant locations and statuses, even if the budget expires early.
+
+Replay uses the current checkout and installed dependency versions. Keep the
+reported revision and lockfile for reproducibility; a dirty worktree is recorded
+but is not archived. Property and fuzz finding JSON files support `--replay`.
+To investigate a mutation survivor, use its location from the Stryker report and
+rerun mutation testing with `--mutate` set to that source file. Survivors and
+uncovered mutants indicate test gaps or equivalent mutations, not confirmed
+product defects. Runtime errors and timeouts have separate mutant statuses.
+
+Exit codes: **0** means no findings within the observed budget, **1** means
+findings (or a reproduced failure), **2** means infrastructure failure or
+interruption. A failed reproduction exits 0 with `not-reproduced`. The report
+distinguishes engine completion, budget exhaustion, infrastructure failure,
+and interruption. Budget exhaustion does not claim full exploration. Reports
+are checkpointed after batches; a supervisor deadline terminates the entire
+child process group, including synchronous loops. SIGINT/SIGTERM preserve the
+summary; SIGKILL or machine failure can leave only the previous checkpoint.
+
+`--self-test` injects a deliberately false property and a controlled fuzz
+exception. Use it with `--engine properties` or `--engine fuzz` to verify finding
+capture without changing production code. These synthetic findings exit 1 and
+are identified in their reports.
+
+The **Model testing campaigns** GitHub Actions workflow supports manual runs
+(default 600 seconds per engine) and nightly runs (3600 seconds per engine).
+Engines run as independent jobs; failure in one does not cancel another.
+Reports are uploaded even after a failing campaign and retained for 30 days.
+The fuzz corpus is cached between successful jobs. Generated reports, corpus,
+compiled targets, and mutation sandboxes are ignored by Git.
 
 ---
 

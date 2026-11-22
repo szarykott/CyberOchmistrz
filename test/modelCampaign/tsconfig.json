@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "noEmit": false,
+    "incremental": false,
+    "sourceMap": true,
+    "rootDir": "../..",
+    "outDir": "../../.model-testing/build",
+    "plugins": []
+  },
+  "include": ["./*.ts"],
+  "exclude": ["node_modules"]
+}
