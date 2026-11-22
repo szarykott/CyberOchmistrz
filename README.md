@@ -53,6 +53,7 @@ CyberOchmistrz/
 ├── .cursorignore              # Excludes build artifacts from Cursor indexing
 ├── .github/workflows/         # CI (test+build on PR) and CD (deploy to gh-pages on master push)
 ├── .vscode/                   # Debug launch configs for Next.js
+├── docs/                      # Domain documentation and Mermaid entity diagrams
 ├── public/                    # PWA manifest, static SVGs
 ├── src/
 │   ├── app/                   # Next.js App Router (routes, layouts, pages)
@@ -136,6 +137,8 @@ No state library (Redux, Zustand, etc.). Pattern:
 ## Domain Glossary
 
 Read [GLOSSARY.md](GLOSSARY.md) for domain definitions and Polish equivalents. The repository-local [domain-glossary skill](.agents/skills/domain-glossary/SKILL.md) helps resolve ambiguous terminology and maintain agreed definitions without changing application code or creating ADRs.
+
+See [domain entity diagrams](docs/domain-model.md) for relationships and mappings to code.
 
 ---
 
