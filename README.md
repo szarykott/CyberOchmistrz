@@ -34,12 +34,22 @@ npm test             # Jest test suite
 
 Static data (recipes, supplies) ships in JSON. Cruises persisted in `localStorage`. Deployed as static site to GitHub Pages with PWA support.
 
+## Intended Usage and Platform Requirements
+
+- The application is distributed as a static site. Users must be able to use it without running an application server or backend.
+- Supported platforms are PC, iOS, and Android.
+- Phones are the primary devices. Design everyday workflows for small screens and touch interaction first.
+- Cruise planning is often done on a computer, so its layout and interactions must also work well on desktop. It must remain usable on phones.
+- Preserve static-export compatibility when adding functionality. UI changes should be checked on phone layouts; cruise-planning changes should also be checked on desktop.
+
 ---
 
 ## Directory Structure
 
 ```
 CyberOchmistrz/
+├── .agents/skills/domain-glossary/
+│   └── SKILL.md               # Clarify domain terminology and maintain the glossary
 ├── .cursorignore              # Excludes build artifacts from Cursor indexing
 ├── .github/workflows/         # CI (test+build on PR) and CD (deploy to gh-pages on master push)
 ├── .vscode/                   # Debug launch configs for Next.js
@@ -72,6 +82,7 @@ CyberOchmistrz/
 │       └── polishDeclension.ts  # Polish grammatical number for units
 ├── test/                      # Jest test suite (~18 test files)
 │   └── AGENTS.md              # Test conventions for AI agents
+├── GLOSSARY.md                # Canonical domain definitions and Polish equivalents
 ├── package.json
 ├── next.config.ts             # Static export + PWA config
 ├── jest.config.js
@@ -122,14 +133,9 @@ No state library (Redux, Zustand, etc.). Pattern:
 
 ---
 
-## Polish Domain Glossary (additions)
+## Domain Glossary
 
-| Term                    | Meaning                     | Where used                      |
-| ----------------------- | --------------------------- | --------------------------------|
-| dieta wegetariańska     | vegetarian diet             | UI tags, coverage report        |
-| dieta wegańska          | vegan diet                  | UI tags, coverage report        |
-| wszystkożerna           | omnivore (diet tag)         | diet tag registry               |
-| załogant / załoganci    | crew member / crew members  | cruise model, form fields       |
+Read [GLOSSARY.md](GLOSSARY.md) for domain definitions and Polish equivalents. The repository-local [domain-glossary skill](.agents/skills/domain-glossary/SKILL.md) helps resolve ambiguous terminology and maintain agreed definitions without changing application code or creating ADRs.
 
 ---
 

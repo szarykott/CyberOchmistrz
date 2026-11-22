@@ -8,6 +8,15 @@ Read README.md to learn about code structure and data flow.
 
 Do not load all files into context initially, use README.md to figure out parts to read and load the rest lazily - if already loaded part of code references it or you have moderate suspicion that changes you make might influence unloaded parts of the code.
 
+## Product constraints
+
+Follow the intended usage and platform requirements in [README.md](README.md#intended-usage-and-platform-requirements):
+
+- Preserve static export; using the application must not require running an application server or backend.
+- Support PC, iOS, and Android. Prioritize phone layouts and touch interaction for everyday workflows.
+- Cruise planning must also work well on desktop, where it is often performed, while remaining usable on phones.
+- Verify UI changes on phone layouts and cruise-planning changes on desktop as well.
+
 ## Comments
 
 If you encounter a comment in code - leave it as-is, unless your change makes it innacurate (in such case - make it accurate) or outdated (remove if cannot fix).
@@ -38,20 +47,8 @@ When you add or remove file, make sure to update directory structure in README.m
 
 ## Polish Domain Glossary
 
-Polish appears in string literals and route paths, not in variable/function names (which are English + intentional `recipie` spelling).
+Read [GLOSSARY.md](GLOSSARY.md) for canonical domain terms and their Polish equivalents. Use those meanings in domain discussions, documentation, and new names. Do not duplicate definitions here.
 
-| Term                 | Meaning                | Where used               |
-| -------------------- | ---------------------- | ------------------------ |
-| przepis / przepisy   | recipe / recipes       | routes, JSON, UI strings |
-| rejs / rejsy         | cruise / cruises       | routes, UI strings       |
-| skladnik / skladniki | ingredient / supplies  | routes, UI strings       |
-| ochmistrz            | steward (ship officer) | app name only            |
-| posilek              | meal type              | enum values              |
-| dzien / dni          | day / days             | cruise day labels        |
-| zaloga               | crew                   | cruise form fields       |
-| lista zakupow        | shopping list          | UI strings               |
-| danie                | dish                   | recipe type labels       |
-| wegetarianska        | vegetarian             | diet tag labelPl         |
-| weganska             | vegan                  | diet tag labelPl         |
-| wszystkozerna        | omnivore               | diet tag labelPl         |
-| zalogant             | crew member            | CrewMember type          |
+When terminology needs clarification or an agreed definition changes, use the repository's [domain-glossary skill](.agents/skills/domain-glossary/SKILL.md). Reading definitions alone does not require invoking the skill.
+
+Polish appears in string literals and route paths, not in variable/function names (which are English + intentional `recipie` spelling).
