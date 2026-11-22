@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useContext, useState } from 'react';
+import { createContext, ReactNode, useContext, useState, useRef } from 'react';
 import { Cruise } from '@/model/cruise';
 import { saveCruise, getCruiseById } from '@/model/cruiseData';
 
@@ -22,8 +22,12 @@ export function CruiseProvider({ cruiseId, children }: CruiseProviderProps) {
 
   const [cruise, setCruiseState] = useState<Cruise>(initialCruise);
 
+  const currentCruise = useRef(cruise);
+
   const setCruise = (cruise: Cruise) => {
+    if (cruise === currentCruise.current) return;
     saveCruise(cruise);
+    currentCruise.current = cruise;
     setCruiseState(cruise);
   }
 

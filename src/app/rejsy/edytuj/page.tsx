@@ -29,7 +29,7 @@ function EditCruiseContent() {
   }
 
   return (
-    <CruiseProvider cruiseId={id}>
+    <CruiseProvider key={id} cruiseId={id}>
       <EditCruiseForm />
     </CruiseProvider>
   );

@@ -1,3 +1,4 @@
+import { MealType } from '../src/model/recipe';
 import { createTestRecipe, createCruiseWithRecipes } from './cruiseTestHarness';
 
 describe('CruiseReorderingRecipiesTests', () => {
@@ -16,7 +17,7 @@ describe('CruiseReorderingRecipiesTests', () => {
         ]
       });
 
-      const updatedCruise = cruise.reorderRecipes(1, 0, 2);
+      const updatedCruise = cruise.moveRecipe({ assignment: cruise.getRecipeAssignments({ day: 1, slot: MealType.DINNER })[0], to: { day: 1, slot: MealType.DINNER } });
 
       const recipes = updatedCruise.days[0].recipes;
       expect(recipes).toHaveLength(3);
@@ -25,35 +26,5 @@ describe('CruiseReorderingRecipiesTests', () => {
       expect(recipes[2].originalRecipeId).toBe('recipe-1');
     });
 
-    it('should do nothing if day number is invalid', () => {
-      const cruise = createCruiseWithRecipes('test-cruise-1', 'Test Cruise', 3, {
-        1: [{ recipeId: 'recipe-1' }]
-      });
-
-      const updatedCruise = cruise.reorderRecipes(10, 0, 2);
-
-      expect(updatedCruise).toBe(cruise);
-    });
-
-    it('should do nothing if fromIndex is out of bounds', () => {
-      const cruise = createCruiseWithRecipes('test-cruise-1', 'Test Cruise', 3, {
-        1: [{ recipeId: 'recipe-1' }]
-      });
-
-      const updatedCruise = cruise.reorderRecipes(1, 5, 0);
-
-      expect(updatedCruise).toBe(cruise);
-
-    });
-
-    it('should do nothing if toIndex is out of bounds', () => {
-      const cruise = createCruiseWithRecipes('test-cruise-1', 'Test Cruise', 3, {
-        1: [{ recipeId: 'recipe-1' }]
-      });
-
-      const updatedCruise = cruise.reorderRecipes(1, 0, 5);
-
-      expect(updatedCruise).toBe(cruise);
-    });
   });
 });

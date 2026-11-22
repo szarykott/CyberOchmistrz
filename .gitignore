@@ -23,6 +23,7 @@
 /build
 
 # misc
+/.nocommit/
 .DS_Store
 *.pem
 

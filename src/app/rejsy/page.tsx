@@ -13,7 +13,7 @@ function Cruise() {
   return (
     <div className="container mx-auto py-6 md:py-8 px-3 md:px-4 min-h-screen flex flex-col">
       {cruiseId ? (
-        <CruiseProvider cruiseId={cruiseId}>
+        <CruiseProvider key={cruiseId} cruiseId={cruiseId}>
           <CruiseDetail />
         </CruiseProvider>
       ) : (

@@ -4,24 +4,30 @@ import {SupplyValidationErrors} from '@/types';
 import suppliesData from '../data/supplies.json';
 import { Supply, Ingredient, CategoryGroup } from './supply';
 
-function castData(): Supply[] {
-  return suppliesData as Supply[];
+const supplies: readonly Supply[] = Object.freeze(
+  (suppliesData as Supply[]).map(supply => Object.freeze({ ...supply }))
+);
+const ingredients: readonly Ingredient[] = Object.freeze(
+  supplies.filter(supply => supply.isIngredient) as Ingredient[]
+);
+const nonIngredients: readonly Supply[] = Object.freeze(
+  supplies.filter(supply => !supply.isIngredient)
+);
+
+export function getAllSupplies(): readonly Supply[] {
+  return supplies;
 }
 
-export function getAllSupplies(): Supply[] {
-  return castData();
+export function getIngredients(): readonly Ingredient[] {
+  return ingredients;
 }
 
-export function getIngredients(): Ingredient[] {
-  return castData().filter(supply => supply.isIngredient) as Ingredient[];
-}
-
-export function getNonIngredients(): Supply[] {
-  return castData().filter(supply => !supply.isIngredient);
+export function getNonIngredients(): readonly Supply[] {
+  return nonIngredients;
 }
 
 export function getSupplyById(id: string): Supply | undefined {
-  return castData().find(supply => supply.id === id);
+  return supplies.find(supply => supply.id === id);
 }
 
 export function getIngredientById(id: string): Ingredient | undefined {
@@ -29,12 +35,11 @@ export function getIngredientById(id: string): Ingredient | undefined {
   return supply && supply.isIngredient ? supply as Ingredient : undefined;
 }
 
-export function getSuppliesByType(showIngredients: boolean): Supply[] {
+export function getSuppliesByType(showIngredients: boolean): readonly Supply[] {
   return showIngredients ? getIngredients() : getNonIngredients();
 }
 
-
-export function groupSuppliesByCategory(supplies: Supply[]): CategoryGroup[] {
+export function groupSuppliesByCategory(supplies: readonly Supply[]): CategoryGroup[] {
   const grouped: {[key: string]: Supply[]} = {};
 
   supplies.forEach(supply => {

@@ -44,6 +44,23 @@ jest.doMock('../src/data/supplies.json', () => mockedSupplies);
 // tests which verify correctness of supply module
 
 describe('supplyData functions', () => {
+  it('should protect catalog collections and entries from mutation', () => {
+    const supplies = getAllSupplies();
+    const original = supplies[0];
+    const originalLength = supplies.length;
+    const originalName = original.name;
+    expect(() => (supplies as Supply[]).pop()).toThrow();
+    expect(Reflect.set(original, 'name', 'changed')).toBe(false);
+    expect(getAllSupplies()).toHaveLength(originalLength);
+    expect(getSupplyById(original.id)?.name).toBe(originalName);
+    expect(Object.isFrozen(supplies)).toBe(true);
+    expect(Object.isFrozen(original)).toBe(true);
+    expect(Object.isFrozen(getIngredients())).toBe(true);
+    expect(Object.isFrozen(getNonIngredients())).toBe(true);
+    expect([...supplies].reverse()).not.toEqual(supplies);
+    expect(getAllSupplies()[0]).toBe(original);
+  });
+
   describe('getAllSupplies', () => {
     it('should return all supplies', () => {
       const supplies = getAllSupplies();

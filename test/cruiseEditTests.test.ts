@@ -3,11 +3,11 @@ import { makeCrewMembers, createTestRecipe } from './cruiseTestHarness';
 import { Cruise } from '@/model/cruise';
 
 describe('cruise edit functionality', () => {
-  describe('updateCruiseDetails', () => {
+  describe('cruise details', () => {
     it('should update cruise name, length, and crew', () => {
       const cruise = Cruise.createNew('Test Cruise', 5, makeCrewMembers(4));
 
-      const updatedCruise = cruise.updateCruiseDetails('Updated Cruise', 7, makeCrewMembers(6));
+      const updatedCruise = cruise.rename('Updated Cruise').changeDuration(7).replaceCrew(makeCrewMembers(6));
 
       expect(updatedCruise?.name).toBe('Updated Cruise');
       expect(updatedCruise?.days.length).toBe(7);
@@ -18,7 +18,7 @@ describe('cruise edit functionality', () => {
     it('should add days when length increases', () => {
       const cruise = Cruise.createNew('Test Cruise', 3, makeCrewMembers(4));
 
-      const updatedCruise = cruise.updateCruiseDetails('Test Cruise', 5, makeCrewMembers(4));
+      const updatedCruise = cruise.changeDuration(5);
 
       expect(updatedCruise?.days).toHaveLength(5);
       expect(updatedCruise?.days[3].dayNumber).toBe(4);
@@ -29,7 +29,7 @@ describe('cruise edit functionality', () => {
     it('should remove days when length decreases', () => {
       const cruise = Cruise.createNew('Test Cruise', 5, makeCrewMembers(4));
 
-      const updatedCruise = cruise.updateCruiseDetails('Test Cruise', 3, makeCrewMembers(4));
+      const updatedCruise = cruise.changeDuration(3);
 
       expect(updatedCruise?.days).toHaveLength(3);
       expect(updatedCruise?.days[2].dayNumber).toBe(3);
@@ -59,8 +59,8 @@ describe('cruise edit functionality', () => {
       const recipe2 = createTestRecipe('recipe2', 'Recipe 2');
 
       cruise = cruise
-        .insertRecipe(4, { originalRecipeId: 'recipe1', recipeData: recipe1, crewCount: 4, mealSlot: MealType.DINNER })
-        .insertRecipe(5, { originalRecipeId: 'recipe2', recipeData: recipe2, crewCount: 4, mealSlot: MealType.DINNER });
+        .addRecipe({ day: 4, recipe: recipe1, portions: 4, slot: MealType.DINNER })
+        .addRecipe({ day: 5, recipe: recipe2, portions: 4, slot: MealType.DINNER });
 
       const result = cruise.willLengthReductionRemoveRecipes(3);
       expect(result).toBe(true);

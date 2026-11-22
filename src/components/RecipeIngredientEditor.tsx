@@ -7,11 +7,7 @@ import { Recipie } from '@/model/recipe';
 
 interface RecipeIngredientEditorProps {
   recipe: Recipie;
-  dayNumber: number;
-  recipeIndex: number;
   onSave: (
-    dayNumber: number,
-    recipeIndex: number,
     name: string,
     ingredients: Array<{ id: string; amount: number }>
   ) => void;
@@ -20,8 +16,6 @@ interface RecipeIngredientEditorProps {
 
 export default function RecipeIngredientEditor({
   recipe,
-  dayNumber,
-  recipeIndex,
   onSave,
   onClose
 }: RecipeIngredientEditorProps) {
@@ -31,6 +25,7 @@ export default function RecipeIngredientEditor({
   const [draftIngredients, setDraftIngredients] = useState<Array<{ id: string; amount: number }>>(
     () => recipe.ingredients.map(i => ({ ...i }))
   );
+  const [saveError, setSaveError] = useState('');
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   const isDirty =
@@ -54,8 +49,12 @@ export default function RecipeIngredientEditor({
   };
 
   const handleSave = () => {
-    onSave(dayNumber, recipeIndex, draftName, draftIngredients);
-    onClose();
+    try {
+      onSave(draftName, draftIngredients);
+      onClose();
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'Nie udało się zapisać przepisu');
+    }
   };
 
   const handleCancelAttempt = () => {
@@ -95,11 +94,14 @@ export default function RecipeIngredientEditor({
 
         <IngredientListEditor
           ingredients={draftIngredients}
+          allowEmpty
           allIngredients={allIngredients}
           onIngredientAmountChange={handleAmountChange}
           onRemoveIngredient={handleRemove}
           onAddIngredient={handleAdd}
         />
+
+        {saveError && <p role="alert" className="error-text">{saveError}</p>}
 
         {showCancelConfirm && (
           <div className="mt-4 p-3 border border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/30 rounded-lg">

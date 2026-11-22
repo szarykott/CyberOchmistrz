@@ -7,28 +7,17 @@ import { getMealCoverage, MealCoverage } from '../model/cruiseDietCoverage';
 import { Diet, DIET_REGISTRY, CrewMember } from '../model/crew';
 import { getSupplyById } from '../model/supplyData';
 import { declineUnit } from '../utils/polishDeclension';
-import { CruiseDayRecipe } from '@/model/cruise';
-import { Recipie, MealType } from '@/model/recipe';
+import { CruiseDayRecipe, RecipeAssignment } from '@/model/cruise';
+import { MealType } from '@/model/recipe';
 
 interface DroppableRecipieContainerProps {
   dayNumber: number;
   recipes: readonly CruiseDayRecipe[];
   crewMembers: readonly CrewMember[];
-  onEditIngredients: (
-    dayNumber: number,
-    recipe: { originalRecipeId: string; recipeData?: Recipie },
-    recipeIndex: number,
-  ) => void;
-  onRemoveRecipe: (
-    dayNumber: number,
-    recipe: { originalRecipeId: string; recipeData?: Recipie },
-    recipeIndex: number,
-  ) => void;
-  onCrewCountChange: (
-    dayNumber: number,
-    recipeIndex: number,
-    crewCount: number,
-  ) => void;
+  getAssignments: (slot: MealType) => readonly RecipeAssignment[];
+  onEditIngredients: (assignment: RecipeAssignment) => void;
+  onRemoveRecipe: (assignment: RecipeAssignment) => void;
+  onCrewCountChange: (assignment: RecipeAssignment, portions: number) => void;
   isDragging?: boolean;
 }
 
@@ -50,6 +39,7 @@ export default function DroppableRecipieContainer({
   dayNumber,
   recipes,
   crewMembers,
+  getAssignments,
   onEditIngredients,
   onRemoveRecipe,
   onCrewCountChange,
@@ -58,10 +48,8 @@ export default function DroppableRecipieContainer({
   return (
     <div className="flex flex-col gap-4">
       {SLOT_ORDER.map((slot) => {
-        const slotRecipes: { recipe: CruiseDayRecipe; originalIndex: number }[] =
-          recipes
-            .map((recipe, originalIndex) => ({ recipe, originalIndex }))
-            .filter(({ recipe }) => recipe.mealSlot === slot);
+        const slotRecipes = recipes.filter((recipe) => recipe.mealSlot === slot);
+        const assignments = getAssignments(slot);
 
         return (
           <SlotSection
@@ -69,6 +57,7 @@ export default function DroppableRecipieContainer({
             slot={slot}
             dayNumber={dayNumber}
             slotRecipes={slotRecipes}
+            assignments={assignments}
             crewMembers={crewMembers}
             isDragging={isDragging}
             onEditIngredients={onEditIngredients}
@@ -84,7 +73,8 @@ export default function DroppableRecipieContainer({
 interface SlotSectionProps {
   slot: MealType;
   dayNumber: number;
-  slotRecipes: { recipe: CruiseDayRecipe; originalIndex: number }[];
+  slotRecipes: readonly CruiseDayRecipe[];
+  assignments: readonly RecipeAssignment[];
   crewMembers: readonly CrewMember[];
   isDragging: boolean;
   onEditIngredients: DroppableRecipieContainerProps['onEditIngredients'];
@@ -96,6 +86,7 @@ function SlotSection({
   slot,
   dayNumber,
   slotRecipes,
+  assignments,
   crewMembers,
   isDragging,
   onEditIngredients,
@@ -111,16 +102,13 @@ function SlotSection({
     },
   });
 
-  const sortableIds = slotRecipes.map(
-    ({ recipe, originalIndex }) =>
-      `${dayNumber}-${originalIndex}-${recipe.originalRecipeId}`,
-  );
+  const sortableIds = assignments.map((assignment) => assignment.key);
 
   const coverage: MealCoverage | null =
     slot === MealType.SNACK
       ? null
       : getMealCoverage(
-          slotRecipes.map((x) => x.recipe),
+          slotRecipes,
           crewMembers,
           slot,
         );
@@ -157,11 +145,11 @@ function SlotSection({
             strategy={verticalListSortingStrategy}
           >
             <ul className="space-y-2">
-              {slotRecipes.map(({ recipe, originalIndex }) => (
+              {assignments.map((assignment) => (
                 <DraggableRecipeItem
-                  key={`${dayNumber}-${originalIndex}-${recipe.originalRecipeId}`}
-                  recipe={recipe}
-                  index={originalIndex}
+                  key={assignment.key}
+                  assignment={assignment}
+                  mealSlot={slot}
                   dayNumber={dayNumber}
                   onEditIngredients={onEditIngredients}
                   onRemoveRecipe={onRemoveRecipe}

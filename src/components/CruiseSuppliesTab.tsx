@@ -46,7 +46,8 @@ export default function CruiseSuppliesTab() {
     setCruise(cruise.removeAdditionalSupply(supplyId, isPerPerson, isPerDay));
   };
 
-  const handleUpdateFlags = (supplyId: string, oldIsPerPerson: boolean, oldIsPerDay: boolean, newIsPerPerson: boolean, newIsPerDay: boolean, amount: number) => {
+  const handleUpdateFlags = (supplyId: string, oldIsPerPerson: boolean, oldIsPerDay: boolean, newIsPerPerson: boolean, newIsPerDay: boolean) => {
+    if (oldIsPerPerson === newIsPerPerson && oldIsPerDay === newIsPerDay) return;
     if (cruise.hasAdditionalSupply(supplyId, newIsPerPerson, newIsPerDay)) {
       const existingAmount = cruise.getAdditionalSupplyAmount(supplyId, newIsPerPerson, newIsPerDay);
       if (existingAmount !== null) {
@@ -57,11 +58,13 @@ export default function CruiseSuppliesTab() {
       }
     }
 
-    const updatedCruise = cruise
-      .removeAdditionalSupply(supplyId, oldIsPerPerson, oldIsPerDay)
-      .upsertAdditionalSupply({ id: supplyId, amount, isPerPerson: newIsPerPerson, isPerDay: newIsPerDay });
-
-    setCruise(updatedCruise);
+    const supply = cruise.additionalSupplies.find(entry =>
+      entry.id === supplyId && entry.isPerPerson === oldIsPerPerson && entry.isPerDay === oldIsPerDay
+    );
+    if (!supply) return;
+    setCruise(cruise.changeAdditionalSupplyScaling({
+      supply, perPerson: newIsPerPerson, perDay: newIsPerDay,
+    }));
   };
 
   const toggleShowIngredients = () => {
@@ -205,7 +208,7 @@ export default function CruiseSuppliesTab() {
                                 const value = e.target.value;
                                 const newIsPerPerson = value === 'perPerson' || value === 'both';
                                 const newIsPerDay = value === 'perDay' || value === 'both';
-                                handleUpdateFlags(supply.id, isPerPerson, isPerDay, newIsPerPerson, newIsPerDay, amount);
+                                handleUpdateFlags(supply.id, isPerPerson, isPerDay, newIsPerPerson, newIsPerDay);
                               }}
                               className="select-small"
                             >

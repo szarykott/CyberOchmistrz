@@ -6,7 +6,8 @@ import { Supply } from '@/model/supply';
 
 interface IngredientListEditorProps {
   ingredients: Array<{ id: string; amount: number }>;
-  allIngredients: Supply[];
+  allowEmpty?: boolean;
+  allIngredients: readonly Supply[];
   onIngredientAmountChange: (index: number, amount: number) => void;
   onRemoveIngredient: (index: number) => void;
   onAddIngredient: (id: string, amount: number) => void;
@@ -14,6 +15,7 @@ interface IngredientListEditorProps {
 
 export default function IngredientListEditor({
   ingredients,
+  allowEmpty = false,
   allIngredients,
   onIngredientAmountChange,
   onRemoveIngredient,
@@ -98,7 +100,7 @@ export default function IngredientListEditor({
                 )}
               </div>
               <div className="flex gap-2 self-end">
-                {ingredients.length > 1 && (
+                {(allowEmpty || ingredients.length > 1) && (
                   <button
                     type="button"
                     onClick={() => onRemoveIngredient(index)}

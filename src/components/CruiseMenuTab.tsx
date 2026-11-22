@@ -1,9 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import {
-  getCruiseById,
-} from '../model/cruiseData';
 import { getRecipeById } from '../model/recipieData';
 import { generateMarkdown } from '../utils/markdownExport';
 import RecipeList from './RecipeList';
@@ -25,14 +22,16 @@ import {
   useSensors,
 } from '@dnd-kit/core';
 import DroppableDayItem from './DroppableDayItem';
-import { Recipie, MealType } from '@/model/recipe';
+import { MealType } from '@/model/recipe';
+import { RecipeAssignment } from '@/model/cruise';
 import { useCruise } from '@/app/rejsy/CruiseProvider';
 
 export default function CruiseMenuTab() {
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const { cruise, setCruise } = useCruise();
   const [mobileView, setMobileView] = useState<'days' | 'details' | 'recipes'>('days');
-  const [editingRecipe, setEditingRecipe] = useState<{ dayNumber: number; recipeIndex: number; recipe: Recipie } | null>(null);
+  const [editingRecipe, setEditingRecipe] = useState<RecipeAssignment | null>(null);
+  const [activeRecipe, setActiveRecipe] = useState<RecipeAssignment['recipe'] | null>(null);
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
@@ -67,51 +66,24 @@ export default function CruiseMenuTab() {
     }
   };
 
-  const handleRemoveRecipe = (
-    dayNumber: number,
-    recipe: { originalRecipeId: string; recipeData?: Recipie },
-    recipeIndex: number,
-  ) => {
-    if (!cruise) return;
-    setCruise(cruise.removeRecipe(dayNumber, recipe.originalRecipeId, recipeIndex));
+  const handleRemoveRecipe = (assignment: RecipeAssignment) => {
+    setCruise(cruise.removeRecipe({ assignment }));
   };
 
-  const handleEditIngredients = (
-    dayNumber: number,
-    recipe: { originalRecipeId: string; recipeData?: Recipie },
-    recipeIndex: number,
-  ) => {
-    if (!recipe.recipeData) return;
-
-    setEditingRecipe({
-      dayNumber,
-      recipeIndex,
-      recipe: recipe.recipeData,
-    });
+  const handleEditIngredients = (assignment: RecipeAssignment) => {
+    setEditingRecipe(assignment);
   };
 
-  const handleCrewCountChange = (
-    dayNumber: number,
-    recipeIndex: number,
-    crewCount: number,
-  ) => {
-    if (!cruise) return;
-    setCruise(cruise.updateCruiseDayRecipe(dayNumber, recipeIndex, {
-      crewCount: crewCount
-    }));
+  const handleCrewCountChange = (assignment: RecipeAssignment, portions: number) => {
+    setCruise(cruise.changePortions({ assignment, portions }));
   };
 
   const handleSaveRecipeEdits = (
-    dayNumber: number,
-    recipeIndex: number,
     name: string,
     ingredients: Array<{ id: string; amount: number }>,
   ) => {
-    if (!cruise) return;
-    setCruise(cruise.updateRecipe(dayNumber, recipeIndex, {
-      name: name,
-      ingredients: ingredients
-    }));
+    if (!editingRecipe) return;
+    setCruise(cruise.editAssignedRecipe({ assignment: editingRecipe, changes: { name, ingredients } }));
   };
 
   const closeIngredientEditor = () => {
@@ -120,6 +92,9 @@ export default function CruiseMenuTab() {
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
+    const data = event.active.data.current;
+    setActiveRecipe(data?.type === 'recipe' ? data.assignment.recipe :
+      data?.type === 'catalog-recipe' ? getRecipeById(data.recipeId) ?? null : null);
   };
 
   const handleDragOver = (event: DragOverEvent) => {
@@ -143,6 +118,7 @@ export default function CruiseMenuTab() {
     const { active, over } = event;
 
     setActiveId(null);
+    setActiveRecipe(null);
     setOverId(null);
 
     if (!over || !active.data.current) return;
@@ -174,12 +150,9 @@ export default function CruiseMenuTab() {
       const fullRecipe = getRecipeById(recipeId);
       if (!fullRecipe) return;
 
-      const recipeSnapshot = JSON.parse(JSON.stringify(fullRecipe));
-      setCruise(cruise.insertRecipe(targetDay, {
-        crewCount: Math.max(1, cruise.crewMembers.length),
-        mealSlot: targetSlot,
-        originalRecipeId: recipeId,
-        recipeData: recipeSnapshot
+      setCruise(cruise.addRecipe({
+        day: targetDay, slot: targetSlot, recipe: fullRecipe,
+        portions: Math.max(1, cruise.crewMembers.length),
       }));
       return;
     }
@@ -187,92 +160,39 @@ export default function CruiseMenuTab() {
     // --- Existing recipe dragged ---
     if (activeData.type !== 'recipe') return;
 
-    const sourceDayNumber: number = activeData.dayNumber;
-    const sourceIndex: number = activeData.index;
+    const assignment: RecipeAssignment = activeData.assignment;
     const sourceMealSlot: MealType = activeData.mealSlot;
-
     let targetDayNumber: number | undefined;
     let targetMealSlot: MealType | undefined;
-    let targetIndex: number | undefined;
+    let before: RecipeAssignment | undefined;
 
     const slotInfo = parseSlotDroppable(overId);
     if (slotInfo) {
       targetDayNumber = slotInfo.dayNumber;
       targetMealSlot = slotInfo.mealSlot;
-      targetIndex = undefined;
     } else if (overId.startsWith('day-list-')) {
       targetDayNumber = parseInt(overId.split('-').pop() || '0', 10);
       targetMealSlot = sourceMealSlot;
-      targetIndex = undefined;
     } else if (overData?.type === 'recipe') {
       targetDayNumber = overData.dayNumber;
       targetMealSlot = overData.mealSlot;
-      targetIndex = overData.index;
+      before = overData.assignment;
+      if (activeData.dayNumber === targetDayNumber && sourceMealSlot === targetMealSlot) {
+        const assignments = cruise.getRecipeAssignments({ day: targetDayNumber!, slot: targetMealSlot! });
+        const sourceIndex = assignments.findIndex(item => item.key === assignment.key);
+        const targetIndex = assignments.findIndex(item => item.key === before!.key);
+        if (sourceIndex >= 0 && sourceIndex < targetIndex) {
+          before = assignments[targetIndex + 1];
+        }
+      }
     } else {
       return;
     }
 
     if (targetDayNumber === undefined || !targetMealSlot) return;
-
-    if (sourceDayNumber === targetDayNumber) {
-      if (sourceMealSlot !== targetMealSlot) {
-        setCruise(cruise.updateCruiseDayRecipe(sourceDayNumber, sourceIndex, {
-          mealSlot: targetMealSlot
-        }));
-        return;
-      }
-      if (targetIndex !== undefined && sourceIndex !== targetIndex) {
-        setCruise(cruise.reorderRecipes(sourceDayNumber, sourceIndex, targetIndex));
-      }
-      return;
-    }
-
-    setCruise(cruise.moveRecipeBetweenDays(sourceDayNumber, targetDayNumber, sourceIndex, targetIndex));
-
-    if (sourceMealSlot !== targetMealSlot) {
-      const updatedCruise = getCruiseById(cruise.id);
-      if (updatedCruise) {
-        const targetDay = updatedCruise.days.find((d) => d.dayNumber === targetDayNumber);
-        if (targetDay) {
-          const insertedIndex =
-            targetIndex !== undefined && targetIndex >= 0 && targetIndex < targetDay.recipes.length
-              ? targetIndex
-              : targetDay.recipes.length - 1;
-
-          setCruise(cruise.updateCruiseDayRecipe(targetDayNumber, insertedIndex, {
-            mealSlot: targetMealSlot
-          }));
-        }
-      }
-    }
-  };
-
-  const getActiveRecipe = () => {
-    if (!activeId) return null;
-
-    if (activeId.startsWith('catalog-')) {
-      const recipeId = activeId.slice('catalog-'.length);
-      const fullRecipe = getRecipeById(recipeId);
-      if (!fullRecipe) return null;
-      return {
-        recipe: { originalRecipeId: recipeId, recipeData: fullRecipe },
-        index: -1,
-        dayNumber: -1,
-      };
-    }
-
-    const [dayStr, indexStr] = activeId.split('-');
-    const dayNumber = parseInt(dayStr, 10);
-    const index = parseInt(indexStr, 10);
-
-    const day = cruise.days.find((d) => d.dayNumber === dayNumber);
-    if (!day || !day.recipes[index]) return null;
-
-    return {
-      recipe: day.recipes[index],
-      index,
-      dayNumber,
-    };
+    setCruise(cruise.moveRecipe({
+      assignment, to: { day: targetDayNumber, slot: targetMealSlot }, before,
+    }));
   };
 
   const selectedDayData = selectedDay !== null
@@ -290,8 +210,6 @@ export default function CruiseMenuTab() {
   const backToDetails = () => {
     setMobileView('details');
   };
-
-  const activeRecipe = getActiveRecipe();
 
   const exportToMarkdown = () => {
     const markdown = generateMarkdown(cruise);
@@ -394,6 +312,7 @@ export default function CruiseMenuTab() {
                 <DroppableRecipieContainer
                   dayNumber={selectedDay}
                   recipes={selectedDayData.recipes}
+                  getAssignments={(slot) => cruise.getRecipeAssignments({ day: selectedDay, slot })}
                   crewMembers={cruise.crewMembers}
                   onEditIngredients={handleEditIngredients}
                   onRemoveRecipe={handleRemoveRecipe}
@@ -450,8 +369,6 @@ export default function CruiseMenuTab() {
         {editingRecipe && (
           <RecipeIngredientEditor
             recipe={editingRecipe.recipe}
-            dayNumber={editingRecipe.dayNumber}
-            recipeIndex={editingRecipe.recipeIndex}
             onSave={handleSaveRecipeEdits}
             onClose={closeIngredientEditor}
           />
@@ -467,15 +384,11 @@ export default function CruiseMenuTab() {
             <div className="flex items-center">
               <div className="flex-1">
                 <span className="font-medium text-sm md:text-base">
-                  {activeRecipe.recipe.recipeData
-                    ? activeRecipe.recipe.recipeData.name
-                    : `Przepis #${activeRecipe.recipe.originalRecipeId}`}
+                  {activeRecipe.name}
                 </span>
-                {activeRecipe.recipe.recipeData && (
-                  <p className="text-xs md:text-sm text-muted mt-1">
-                    {activeRecipe.recipe.recipeData.mealType.join(', ')}
-                  </p>
-                )}
+                <p className="text-xs md:text-sm text-muted mt-1">
+                  {activeRecipe.mealType.join(', ')}
+                </p>
               </div>
             </div>
           </div>

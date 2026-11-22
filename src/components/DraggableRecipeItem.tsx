@@ -2,36 +2,23 @@
 
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { getRecipeById } from '../model/recipieData';
-import { CruiseDayRecipe } from '@/model/cruise';
-import { Recipie } from '@/model/recipe';
+import { RecipeAssignment } from '@/model/cruise';
+import { MealType } from '@/model/recipe';
 
 interface DraggableRecipeItemProps {
-  recipe: CruiseDayRecipe;
-  index: number;
+  assignment: RecipeAssignment;
   dayNumber: number;
-  onEditIngredients: (
-    dayNumber: number,
-    recipe: { originalRecipeId: string; recipeData?: Recipie },
-    recipeIndex: number,
-  ) => void;
-  onRemoveRecipe: (
-    dayNumber: number,
-    recipe: { originalRecipeId: string; recipeData?: Recipie },
-    recipeIndex: number,
-  ) => void;
-  onCrewCountChange: (
-    dayNumber: number,
-    recipeIndex: number,
-    crewCount: number,
-  ) => void;
+  mealSlot: MealType;
+  onEditIngredients: (assignment: RecipeAssignment) => void;
+  onRemoveRecipe: (assignment: RecipeAssignment) => void;
+  onCrewCountChange: (assignment: RecipeAssignment, portions: number) => void;
   isDragging?: boolean;
 }
 
 export default function DraggableRecipeItem({
-  recipe,
-  index,
+  assignment,
   dayNumber,
+  mealSlot,
   onEditIngredients,
   onRemoveRecipe,
   onCrewCountChange,
@@ -45,14 +32,8 @@ export default function DraggableRecipeItem({
     transition,
     isDragging: isSortableDragging,
   } = useSortable({
-    id: `${dayNumber}-${index}-${recipe.originalRecipeId}`,
-    data: {
-      type: 'recipe',
-      recipe,
-      index,
-      dayNumber,
-      mealSlot: recipe.mealSlot,
-    },
+    id: assignment.key,
+    data: { type: 'recipe', assignment, dayNumber, mealSlot },
   });
 
   const style = {
@@ -61,9 +42,9 @@ export default function DraggableRecipeItem({
     opacity: isDragging || isSortableDragging ? 0.5 : 1,
   };
 
-  const recipeData = recipe.recipeData || getRecipeById(recipe.originalRecipeId);
+  const recipeData = assignment.recipe;
 
-  const crewCount = recipe.crewCount;
+  const crewCount = assignment.portions;
   const canDecrement = crewCount > 1;
 
   return (
@@ -97,14 +78,14 @@ export default function DraggableRecipeItem({
           </div>
           <div className="flex-1 min-w-0">
             <span className="font-medium text-sm md:text-base">
-              {recipeData ? recipeData.name : `Przepis #${recipe.originalRecipeId}`}
+              {recipeData.name}
             </span>
           </div>
           <div className="flex items-center gap-1">
             <button
               type="button"
               onClick={() =>
-                canDecrement && onCrewCountChange(dayNumber, index, crewCount - 1)
+                canDecrement && onCrewCountChange(assignment, crewCount - 1)
               }
               disabled={!canDecrement}
               className="btn-secondary btn-small px-2 disabled:opacity-40 disabled:cursor-not-allowed"
@@ -117,7 +98,7 @@ export default function DraggableRecipeItem({
             </span>
             <button
               type="button"
-              onClick={() => onCrewCountChange(dayNumber, index, crewCount + 1)}
+              onClick={() => onCrewCountChange(assignment, crewCount + 1)}
               className="btn-secondary btn-small px-2"
               aria-label="Zwiększ liczbę porcji"
             >
@@ -128,14 +109,14 @@ export default function DraggableRecipeItem({
         <div className="flex justify-end gap-2 mt-1">
           {recipeData && (
             <button
-              onClick={() => onEditIngredients(dayNumber, recipe, index)}
+              onClick={() => onEditIngredients(assignment)}
               className="btn-primary px-2 py-1 text-xs md:text-sm"
             >
               Edytuj składniki
             </button>
           )}
           <button
-            onClick={() => onRemoveRecipe(dayNumber, recipe, index)}
+            onClick={() => onRemoveRecipe(assignment)}
             className="btn-remove px-2 py-1 text-xs md:text-sm"
           >
             Usuń

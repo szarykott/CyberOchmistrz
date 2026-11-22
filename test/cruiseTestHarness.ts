@@ -76,11 +76,11 @@ export const createCruiseWithRecipes = (
   Object.entries(recipesByDay).forEach(([dayNum, recipes]) => {
 
     for (const r of recipes) {
-      cruise = cruise.insertRecipe(parseInt(dayNum), {
-        originalRecipeId: r.recipeId,
-        recipeData: r.recipeData ?? createTestRecipe(r.recipeId, r.recipeId),
-        crewCount: r.crewCount ?? crewMembers.length,
-        mealSlot: r.mealSlot ?? MealType.DINNER,
+      cruise = cruise.addRecipe({
+        day: parseInt(dayNum),
+        recipe: r.recipeData ?? createTestRecipe(r.recipeId, r.recipeId),
+        portions: r.crewCount ?? crewMembers.length,
+        slot: r.mealSlot ?? MealType.DINNER,
       });
     }
   });

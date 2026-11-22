@@ -63,6 +63,8 @@ jest.mock('../src/data/supplies.json', () => [
   }
 ]);
 
+import suppliesData from '../src/data/supplies.json';
+import { getIngredientById as getSupplyIngredientById } from '../src/model/supplyData';
 import { Recipie, MealType, IngredientAmount } from '../src/model/recipe';
 import { getRecipies, getRecipeById, getIngredients, getIngredientById, getRecipieIngredients, isRecipieVegetarian, isRecipieVegan, createRecipie } from '../src/model/recipieData';
 
@@ -97,6 +99,15 @@ describe('recipieData', () => {
     it('should return undefined if recipe not found', () => {
       expect(getRecipeById('nonexistent')).toBeUndefined();
     });
+  });
+
+  it('should share owned immutable ingredients across catalog lookups', () => {
+    const ingredient = getIngredientById('czosnek');
+    expect(ingredient).toBe(getSupplyIngredientById('czosnek'));
+    expect(ingredient).not.toBe(suppliesData[0]);
+    expect(Object.isFrozen(ingredient)).toBe(true);
+    expect(Object.isFrozen(suppliesData[0])).toBe(false);
+    expect(Object.isFrozen(getIngredients())).toBe(true);
   });
 
   describe('getIngredients', () => {
@@ -137,6 +148,13 @@ describe('recipieData', () => {
       expect(result).toHaveLength(1);
       expect(result[0]).toEqual(expect.objectContaining({ id: 'unknown', amount: 50, name: 'Unknown (unknown)' }));
     });
+  });
+
+  it('should not confirm diets when a known ingredient is mixed with an unknown ingredient', () => {
+    const dish = makeRawRecipe({ ingredients: [{ id: 'czosnek', amount: 1 }, { id: 'missing', amount: 2 }] });
+    expect(isRecipieVegetarian(dish)).toBe(false);
+    expect(isRecipieVegan(dish)).toBe(false);
+    expect(dish.ingredients).toHaveLength(2);
   });
 
   describe('isRecipieVegetarian', () => {

@@ -8,7 +8,9 @@ export function getCruises(): Cruise[] {
   const storedCruises = localStorage.getItem(STORAGE_KEY);
   if (!storedCruises) return [];
 
-  return (JSON.parse(storedCruises) as Cruise[]).map(Cruise.fromCruise);
+  const data: unknown = JSON.parse(storedCruises);
+  if (!Array.isArray(data)) throw new Error('Nieprawidłowa lista rejsów');
+  return data.map(Cruise.fromData);
 }
 
 export function getCruiseById(id: string): Cruise | undefined {
@@ -18,6 +20,7 @@ export function getCruiseById(id: string): Cruise | undefined {
 export function saveCruise(cruise: Cruise): void {
   if (typeof window === 'undefined') return;
 
+  cruise = Cruise.fromData(cruise);
   const cruises = getCruises();
   const existingIndex = cruises.findIndex(c => c.id === cruise.id);
 

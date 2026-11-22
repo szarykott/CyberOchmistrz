@@ -3,9 +3,7 @@ import { getCruises, getCruiseById, saveCruise, deleteCruise } from '../src/mode
 import { setupCruises, clearCruises, getStoredCruises, localStorageMock, makeCrewMembers } from './cruiseTestHarness';
 
 describe('cruiseData', () => {
-  // createNew auto-generates id/dates; spread overrides on top so tests can pin a
-  // deterministic id (default 'test-cruise-1'). The result is a plain Cruise-shaped
-  // object, matching how cruises come back from localStorage (JSON, no methods).
+  // createNew auto-generates id/dates; spread overrides pin a deterministic ID.
   const makeCruise = (overrides?: Partial<Cruise>): Cruise => {
     const base = Cruise.createNew(
       overrides?.name ?? 'Test Cruise',
@@ -14,7 +12,7 @@ describe('cruiseData', () => {
       overrides?.days?.slice(),
       overrides?.additionalSupplies?.slice(),
       '2030-06-01');
-    return { ...base, id: 'test-cruise-1', ...overrides } as Cruise;
+    return Cruise.fromData({ ...base, id: 'test-cruise-1', ...overrides });
   };
 
   const expectCruisesStored = (expectedCruises: Cruise[]) => {
@@ -72,12 +70,11 @@ describe('cruiseData', () => {
       jest.useFakeTimers();
       jest.setSystemTime(new Date('2030-06-01T00:00:00.000Z'));
 
-      // Real instance (not makeCruise) because this test calls updateCruiseDetails.
       const initialCruise = Cruise.createNew('Original Name', 3, makeCrewMembers(2), undefined, undefined, '2030-06-01');
       setupCruises([initialCruise]);
 
       jest.setSystemTime(new Date('2030-06-01T00:00:01.000Z')); // +1s
-      const updatedCruise = initialCruise.updateCruiseDetails('Updated Name', initialCruise.days.length, initialCruise.crewMembers.slice());
+      const updatedCruise = initialCruise.rename('Updated Name');
       saveCruise(updatedCruise);
 
       const stored = getStoredCruises();

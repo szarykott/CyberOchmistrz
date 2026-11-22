@@ -69,20 +69,26 @@ CyberOchmistrz/
 │   │   └── supplies.json      # ~100 supplies with units, categories, veg flags
 │   ├── model/                 # Domain logic (no UI)
 │   │   ├── AGENTS.md          # Model layer rules for AI agents
-│   │   ├── cruiseData.ts      # Cruise CRUD, recipe assignment, shopping aggregation, CSV export
+│   │   ├── cruise.ts          # Immutable cruise model and intention-focused operations
+│   │   ├── cruiseData.ts      # Cruise persistence and restoration
 │   │   ├── cruiseDietCoverage.ts  # Max-flow diet coverage (Dinic's algorithm), smart crewCount defaults
 │   │   ├── crew.ts            # CrewMember (with excludedSupplies), Diet type, DIET_REGISTRY
 │   │   ├── recipieData.ts     # Recipe loading, ingredient resolution, veg checks
-│   │   └── supplyData.ts      # Supply loading, filtering, validation
+│   │   ├── recipe.ts          # Recipe and ingredient quantity types
+│   │   ├── supply.ts          # Supply and ingredient types
+│   │   └── supplyData.ts      # Immutable supply catalog, filtering, validation
 │   ├── types/                 # TypeScript interfaces and enums
-│   │   └── index.ts           # Supply, Ingredient, Recipie, Cruise, shopping list types
+│   │   └── index.ts           # Shared UI types
 │   └── utils/
 │       ├── cruiseFileIO.ts      # Cruise JSON export (download) and import (parse file)
 │       ├── markdownExport.ts    # Markdown export for cruise menu (days, slots, recipes)
 │       ├── maxFlow.ts           # Dinic's max-flow algorithm used by diet coverage
 │       └── polishDeclension.ts  # Polish grammatical number for units
-├── test/                      # Jest test suite (~18 test files)
-│   └── AGENTS.md              # Test conventions for AI agents
+├── test/                      # Jest test suite
+│   ├── AGENTS.md              # Test conventions for AI agents
+│   ├── cruiseIntentions.test.ts  # Immutable cruise operations
+│   ├── cruiseRestoration.test.ts # Serialized cruise restoration
+│   └── cruiseUi.test.tsx      # Cruise UI interactions
 ├── GLOSSARY.md                # Canonical domain definitions and Polish equivalents
 ├── package.json
 ├── next.config.ts             # Static export + PWA config
@@ -107,6 +113,7 @@ CyberOchmistrz/
 - **Tailwind CSS 4** (via `@tailwindcss/postcss`) — Utility-first styling
 - **Jest 30 + ts-jest** — Unit testing
 - **jest-theories** — Parameterized test cases
+- **Testing Library + jest-environment-jsdom** — DOM interaction tests
 - **ESLint 9 + eslint-config-next** — Linting
 
 ---
@@ -115,11 +122,11 @@ CyberOchmistrz/
 
 No state library (Redux, Zustand, etc.). Pattern:
 
-- **Static data:** direct `import` of JSON files
-- **Mutable data:** `localStorage` with SSR guard (`typeof window === 'undefined'` returns empty)
-- **Component state:** React `useState` + `useEffect` for hydration
-- Each page that needs cruise data calls `getCruises()` / `getCruiseById()` which reads `localStorage` synchronously
-- Mutations call `saveCruise()` which writes back to `localStorage`, then component re-reads
+- **Static data:** JSON catalogs are bundled with the application. Supply APIs share an owned, immutable catalog and read-only views.
+- **Persistent data:** `localStorage` access has an SSR guard (`typeof window === 'undefined'` returns empty). `getCruises()` and `getCruiseById()` restore immutable `Cruise` instances synchronously.
+- **Restoration:** file imports and stored data are parsed as `unknown` and validated by `Cruise.fromData` before use or persistence. Existing cruise IDs and recipe snapshots are preserved; new cruise IDs are UUIDs.
+- **Cruise state:** intention-focused model operations return immutable instances. Assignments own recipe snapshots and expose handles for edits, moves, and removal. The cruise provider publishes changed instances and skips publication when an operation returns the same instance.
+- **Component state:** React `useState` + `useEffect` handles local state and hydration.
 
 ---
 
@@ -127,10 +134,8 @@ No state library (Redux, Zustand, etc.). Pattern:
 
 1. **localStorage only** — No sync between devices, no backend
 2. **No online recipe/supply editing** — New items generate JSON for manual file merge
-3. **No day add/remove** — Cruise day count fixed at creation (edit can change length but warns about recipe loss)
+3. **No individual day add/remove** — Cruise duration can be changed; shortening warns when it removes recipes
 4. **Typo in codebase** — "recipie" used consistently instead of "recipe" (in filenames, types, variables) — intentional per `.DotSettings` dictionary
-5. **Callback type mismatch** — `CruiseSuppliesTab` declares `onSupplyChange(cruise)` but parent passes zero-arg refresh function
-6. **DnD ID parsing fragility** — `activeId.split('-')` assumes recipe IDs don't contain hyphens
 
 ---
 

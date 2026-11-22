@@ -1,7 +1,9 @@
 import recipies from '../data/recipies.json';
-import suppliesData from '../data/supplies.json';
+import { getIngredientById } from './supplyData';
 import { Recipie, IngredientAmount } from './recipe';
-import { Ingredient, Supply } from './supply';
+import { Ingredient } from './supply';
+
+export { getIngredients, getIngredientById } from './supplyData';
 
 export function createRecipie(data: Recipie): Recipie {
   if (data.ingredients.length === 0) {
@@ -16,14 +18,6 @@ export function getRecipies(): Recipie[] {
 
 export function getRecipeById(id: string): Recipie | undefined {
   return getRecipies().find(recipie => recipie.id === id);
-}
-
-export function getIngredients(): Ingredient[] {
-  return (suppliesData as Supply[]).filter(supply => supply.isIngredient === true) as Ingredient[];
-}
-
-export function getIngredientById(id: string): Ingredient | undefined {
-  return getIngredients().find(ingredient => ingredient.id === id);
 }
 
 export function getRecipieIngredients(ingredients: readonly IngredientAmount[]): (IngredientAmount & Ingredient)[] {
@@ -50,21 +44,13 @@ export function getRecipieIngredients(ingredients: readonly IngredientAmount[]):
 }
 
 export function isRecipieVegetarian(dish: Recipie): boolean {
-  const ingredients = dish.ingredients
-    .map(ing => getIngredientById(ing.id))
-    .filter((ing): ing is Ingredient => ing !== undefined);
-
   // Defense-in-depth: legacy snapshots from localStorage may predate the factory guard
-  if (ingredients.length === 0) return false;
-  return ingredients.every(ing => ing.isVegetarian);
+  if (dish.ingredients.length === 0) return false;
+  return dish.ingredients.every(ing => getIngredientById(ing.id)?.isVegetarian === true);
 }
 
 export function isRecipieVegan(dish: Recipie): boolean {
-  const ingredients = dish.ingredients
-    .map(ing => getIngredientById(ing.id))
-    .filter((ing): ing is Ingredient => ing !== undefined);
-
   // Defense-in-depth: legacy snapshots from localStorage may predate the factory guard
-  if (ingredients.length === 0) return false;
-  return ingredients.every(ing => ing.isVegan);
+  if (dish.ingredients.length === 0) return false;
+  return dish.ingredients.every(ing => getIngredientById(ing.id)?.isVegan === true);
 }

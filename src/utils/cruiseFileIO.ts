@@ -15,6 +15,6 @@ export function exportCruise(cruise: Cruise): void {
 
 export async function importCruiseFromFile(file: File): Promise<Cruise> {
   const text = await file.text();
-  const parsed = JSON.parse(text) as Cruise;
-  return parsed;
+  const parsed: unknown = JSON.parse(text);
+  return Cruise.fromData(parsed);
 }

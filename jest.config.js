@@ -2,9 +2,9 @@ module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   roots: ['<rootDir>/src', '<rootDir>/test'],
-  testMatch: ['**/__test__/**/*.ts', '**/?(*.)+(spec|test).ts'],
+  testMatch: ['**/__test__/**/*.ts', '**/?(*.)+(spec|test).ts?(x)'],
   transform: {
-    '^.+\\.ts$': 'ts-jest',
+    '^.+\\.tsx?$': ['ts-jest', { tsconfig: { jsx: 'react-jsx' } }],
   },
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',

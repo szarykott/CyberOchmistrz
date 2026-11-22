@@ -61,6 +61,14 @@ const eggs = recipe('eggs-omni', ['egg', 'meat']);              // omnivore
 // ---------------------------------------------------------------------------
 
 describe('canEat', () => {
+  it('should not allocate a recipe with an unknown ingredient to restricted diets', () => {
+    const mixed = recipe('mixed', ['tofu', 'missing']);
+    expect(canEat(omni('1'), mixed)).toBe(true);
+    expect(canEat(veg('1'), mixed)).toBe(false);
+    expect(canEat(vegan('1'), mixed)).toBe(false);
+    expect(getMealCoverage([slot(mixed, 1)], [vegan('1')], MealType.DINNER).unfed).toHaveLength(1);
+    expect(mixed.ingredients.map(item => item.id)).toEqual(['tofu', 'missing']);
+  });
   it('omnivore eats any recipe', () => {
     expect(canEat(omni('1'), spaghetti)).toBe(true);
     expect(canEat(omni('1'), tofu)).toBe(true);

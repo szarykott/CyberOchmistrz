@@ -30,6 +30,7 @@ erDiagram
         int dayNumber "within this cruise"
     }
     RecipeAssignment {
+        string assignmentId "optional in legacy data; normalized on restoration"
         string originalRecipeId
         int crewCount "portion count"
         MealType mealSlot
@@ -50,7 +51,8 @@ erDiagram
 
 - Crew is the cruise's collection of crew members, not a separate record. A crew member has one diet: `omnivore`, `vegetarian`, or `vegan`. Exclusions reference supplies independently of diet.
 - A cruise day belongs to one cruise. `dayNumber` identifies its position within that cruise, not a global day entity.
-- A recipe assignment belongs to one day and owns one recipe snapshot. `originalRecipeId` records its catalog origin; the snapshot remains available even when that catalog lookup fails. Multiple assignments can originate from the same catalog recipe.
+- A recipe assignment belongs to one day and owns an immutable recipe snapshot. `originalRecipeId` records its catalog origin; the snapshot remains available even when that catalog lookup fails. Multiple assignments can originate from the same catalog recipe. `assignmentId` persists their distinct identities; legacy data without it receives a stable identity on restoration.
+- The model reads assignments by day and slot and returns handles containing `key`, `recipe`, and `portions`. Edits, moves, and removal select assignments through these handles rather than day-array indices.
 - A meal slot is identified by a day and a meal type. It is represented by `RecipeAssignment.mealSlot`, not a separate object. Multiple assignments can share the same slot. Meal types are `śniadanie`, `obiad`, `kolacja`, and `przekąska`.
 - `crewCount` means portions for that assignment, not the number of people in the cruise's crew.
 
@@ -91,7 +93,7 @@ erDiagram
 - An ingredient is a specialization of a supply with the same identity, not a second catalog entry. Supplies also include non-food products.
 - Ingredient quantity is an embedded value containing a supply ID and an amount per person. It is not the ingredient catalog record itself.
 - `mealType` describes the recipe's suitable meal types; `mealSlot` places one assignment in a day's plan.
-- Valid new recipes have at least one ingredient quantity. Ingredient IDs should resolve to ingredient supplies; missing references and older snapshots can still occur in stored data.
+- Valid new recipes have at least one ingredient quantity. Ingredient IDs should resolve to ingredient supplies; missing references and older snapshots can still occur in stored data. A recipe is confirmed vegetarian or vegan only when every ingredient resolves and has the corresponding property.
 
 Source: [recipe.ts](../src/model/recipe.ts), [supply.ts](../src/model/supply.ts), [recipieData.ts](../src/model/recipieData.ts).
 

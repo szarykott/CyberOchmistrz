@@ -85,12 +85,13 @@ export default function EditCruiseForm() {
       }
     }
 
-    setCruise(cruise.updateCruiseDetails(
-      formData.name,
-      formData.length,
-      formData.crewMembers,
-      formData.startDate || undefined,
-    ));
+    const updated = cruise
+      .rename(formData.name)
+      .changeDuration(formData.length)
+      .replaceCrew(formData.crewMembers);
+    setCruise(formData.startDate
+      ? updated.changeStartDate(formData.startDate)
+      : updated.clearStartDate());
 
     router.push(`/rejsy?id=${cruise.id}`);
   };
