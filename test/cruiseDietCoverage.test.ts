@@ -1,6 +1,6 @@
 import { getMealCoverage, getDayCoverage, getCruiseCoverage, countCrewWithTag, getActiveDietTags, canEat } from '../src/model/cruiseDietCoverage';
 import { createRecipie } from '../src/model/recipieData';
-import { Diet, CrewMember } from '../src/model/crew';
+import { Diet, CrewMember, DIET_REGISTRY } from '../src/model/crew';
 import { CruiseDayRecipe, Cruise } from '../src/model/cruise';
 import { MealType, Recipie } from '../src/model/recipe';
 
@@ -197,6 +197,10 @@ describe('getMealCoverage', () => {
       const result = getMealCoverage([slot(spaghetti, 5)], [], MealType.DINNER);
       expect(result.unfed).toHaveLength(0);
       expect(result.totalNeeded).toBe(0);
+      expect(result.mealType).toBe(MealType.DINNER);
+      expect(result.totalPortions).toBe(5);
+      expect(result.surplus).toBe(5);
+      expect(result.forbiddenIngredientCounts).toEqual({});
     });
   });
 
@@ -229,6 +233,17 @@ describe('getMealCoverage', () => {
   });
 
   describe('ingredient exclusions', () => {
+    it('should count matching exclusions across unfed members and ignore absent ingredients', () => {
+      const crew = [
+        { ...omni('1'), excludedSupplies: ['meat', 'cheese'] },
+        { ...omni('2'), excludedSupplies: ['meat'] },
+        omni('3'),
+      ];
+      const result = getMealCoverage([slot(spaghetti, 3)], crew, MealType.DINNER);
+      expect(result.unfed).toEqual([crew[0], crew[1]]);
+      expect(result.forbiddenIngredientCounts).toEqual({ meat: 2 });
+    });
+
     it('member with exclusion blocked by matching ingredient', () => {
       // omni normally eats spaghetti, but excludes meat → blocked
       const m = { ...omni('1'), excludedSupplies: ['meat'] };
@@ -491,6 +506,16 @@ describe('countCrewWithTag', () => {
 });
 
 describe('getActiveDietTags', () => {
+  it('should provide Polish long labels for each diet', () => {
+    expect(Object.fromEntries(Object.entries(DIET_REGISTRY).map(([diet, metadata]) => [diet, metadata.labelLong])))
+      .toEqual({ omnivore: 'wszystkożerna', vegetarian: 'wegetariańska', vegan: 'wegańska' });
+  });
+
+  it('should return present diets once in canonical order', () => {
+    const cruise = makeCruise([vegan('1'), veg('2'), omni('3'), vegan('4')]);
+    expect(getActiveDietTags(cruise)).toEqual(['omnivore', 'vegetarian', 'vegan']);
+  });
+
   it('should return only diets present in crew', () => {
     const cruise = makeCruise([omni('1'), vegan('2')]);
     const tags = getActiveDietTags(cruise);

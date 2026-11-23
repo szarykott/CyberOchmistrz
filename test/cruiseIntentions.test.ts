@@ -12,6 +12,7 @@ describe('Cruise intentions', () => {
     const first = Cruise.createNew('First', 1, crew);
     const second = Cruise.createNew('Second', 1, crew);
     expect(first.id).not.toBe(second.id);
+    expect(first.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
     expect(first.dateCreated).toBe(second.dateCreated);
     crew[0].excludedSupplies.push('egg');
     expect(first.crewMembers[0].excludedSupplies).toEqual(['milk']);
@@ -80,7 +81,10 @@ describe('Cruise intentions', () => {
     expect(second.changePortions({ assignment, portions: 2 }).days[0].recipes[0].crewCount).toBe(2);
     expect(first.changeDuration(2).days[0]).toBe(first.days[0]);
     expect(first.rename('New').days).toBe(first.days);
-    expect(first.changeStartDate('2027-05-01').clearStartDate().startDate).toBeUndefined();
+    const dated = first.changeStartDate('2027-05-01');
+    expect(dated.rename('New').startDate).toBe('2027-05-01');
+    expect(dated.changeStartDate('2027-05-01')).toBe(dated);
+    expect(dated.clearStartDate().startDate).toBeUndefined();
   });
 
   it('should keep the same cruise when a move leaves slot order unchanged', () => {
@@ -133,6 +137,9 @@ describe('Cruise intentions', () => {
     expect(menu(edited)[0].recipe.ingredients[0].amount).toBe(2);
     expect(menu(edited)[1].recipe).toBe(second.recipe);
     expect(menu(cruise)[0].recipe.name).toBe('Recipe');
+    for (const ingredients of [[{ ...first.recipe.ingredients[0], id: 'other' }], [{ ...first.recipe.ingredients[0], amount: 2 }]]) {
+      expect(menu(cruise.editAssignedRecipe({ assignment: first, changes: { ingredients } }))[0].recipe.ingredients).toEqual(ingredients);
+    }
   });
 
   it('should retain amount when scaling without collision across both flags', () => {
@@ -153,6 +160,41 @@ describe('Cruise intentions', () => {
     const equalCrew = [{ name: 'Anna', diet: 'omnivore' as const, excludedSupplies: ['milk', 'egg'], id: 'a' }];
     expect(cruise.replaceCrew(equalCrew)).toBe(cruise);
     expect(cruise.replaceCrew([{ ...equalCrew[0], excludedSupplies: ['egg', 'milk'] }])).not.toBe(cruise);
+  });
+
+  it('should replace crew when any member field or exclusion changes', () => {
+    const crew = [
+      { id: 'a', name: 'Anna', diet: 'omnivore' as const, excludedSupplies: ['milk', 'egg'] },
+      { id: 'b', name: 'Beata', diet: 'vegan' as const, excludedSupplies: ['nuts', 'soy'] },
+    ];
+    const cruise = Cruise.createNew('Cruise', 1, crew);
+    for (const change of [
+      { id: 'c' }, { name: 'Barbara' }, { diet: 'vegetarian' as const },
+      { excludedSupplies: ['nuts', 'milk'] }, { excludedSupplies: ['nuts'] },
+      { excludedSupplies: undefined },
+    ]) {
+      const replacement = [crew[0], { ...crew[1], ...change }];
+      const updated = cruise.replaceCrew(replacement);
+      expect(updated.crewMembers[1]).toEqual(replacement[1]);
+      expect(updated).not.toBe(cruise);
+    }
+    expect(cruise.replaceCrew(crew.map(member => ({ ...member, excludedSupplies: [...member.excludedSupplies] })))).toBe(cruise);
+  });
+
+  it('should filter assignments by slot and reorder within a slot', () => {
+    const cruise = Cruise.createNew('Cruise', 2, [])
+      .addRecipe({ day: 1, slot: MealType.DINNER, recipe: recipe(), portions: 1 })
+      .addRecipe({ day: 1, slot: MealType.BREAKFAST, recipe: recipe(), portions: 2 })
+      .addRecipe({ day: 1, slot: MealType.DINNER, recipe: recipe(), portions: 3 });
+    const [first, last] = menu(cruise);
+    const breakfast = menu(cruise, 1, MealType.BREAKFAST)[0];
+    expect(menu(cruise, 3)).toEqual([]);
+    expect(menu(cruise).map(item => item.portions)).toEqual([1, 3]);
+    expect(menu(cruise.moveRecipe({ assignment: last, to: { day: 1, slot: MealType.DINNER }, before: first })).map(item => item.portions)).toEqual([3, 1]);
+    expect(cruise.moveRecipe({ assignment: first, to: { day: 1, slot: MealType.DINNER }, before: breakfast })).toBe(cruise);
+    expect(cruise.moveRecipe({ assignment: first, to: { day: 2, slot: MealType.DINNER }, before: last })).toBe(cruise);
+    expect(cruise.moveRecipe({ assignment: first, to: { day: 3, slot: MealType.DINNER } })).toBe(cruise);
+    expect(cruise.moveRecipe({ assignment: first, to: { day: 1, slot: MealType.DINNER }, before: first })).toBe(cruise);
   });
 
 });

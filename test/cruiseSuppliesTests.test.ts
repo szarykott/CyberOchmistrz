@@ -110,6 +110,23 @@ describe('cruiseSupplies', () => {
     });
   });
 
+  describe('additional supply scaling keys', () => {
+    it('should add amounts and find supplies by their complete scaling key', () => {
+      const fixed = { id: 'water', amount: 3, isPerPerson: false, isPerDay: false };
+      const daily = { ...fixed, amount: 7, isPerDay: true };
+      const cruise = setupTestCruise({ supplies: [] }).addAdditionalSupply(fixed)
+        .addAdditionalSupply(daily).addAdditionalSupply({ ...fixed, amount: 2 });
+      expect(cruise.getAdditionalSupplyAmount('water', false, false)).toBe(5);
+      expect(cruise.getAdditionalSupplyAmount('water', false, true)).toBe(7);
+      expect(cruise.getAdditionalSupplyAmount('water', true, false)).toBeNull();
+      expect(cruise.hasAdditionalSupply('water', false, true)).toBe(true);
+      expect(cruise.hasAdditionalSupply('water', true, true)).toBe(false);
+      const removed = cruise.removeAdditionalSupply('water', false, false);
+      expect(removed.hasAdditionalSupply('water', false, false)).toBe(false);
+      expect(removed.getAdditionalSupplyAmount('water', false, true)).toBe(7);
+    });
+  });
+
   describe('removeAdditionalSupply', () => {
     it('should remove a supply from the cruise', () => {
       let cruise = setupTestCruise({
@@ -149,6 +166,14 @@ describe('cruiseSupplies', () => {
   });
 
   describe('groupAdditionalSuppliesByCategory', () => {
+    it('should omit unknown supplies while retaining known supplies', () => {
+      const cruise = setupTestCruise({ supplies: [
+        { id: 'unknown-supply', amount: 2, isPerPerson: false, isPerDay: false },
+        { id: 'woda_butelkowana', amount: 3, isPerPerson: false, isPerDay: false },
+      ] });
+      const grouped = cruise.groupAdditionalSuppliesByCategory();
+      expect(grouped.flatMap(group => group.supplies).map(item => item.supply.id)).toEqual(['woda_butelkowana']);
+    });
     it('should group additional supplies by category', () => {
       const cruise = setupTestCruise({
         supplies: [

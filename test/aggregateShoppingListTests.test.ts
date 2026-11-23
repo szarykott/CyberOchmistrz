@@ -3,7 +3,7 @@ import { createRecipie } from '../src/model/recipieData';
 import { CrewMember } from '../src/model/crew';
 import { CruiseDayRecipe, CruiseDay, CruiseSupply, Cruise } from '../src/model/cruise';
 import { IngredientAmount, Recipie, MealType } from '../src/model/recipe';
-import { AmountSource, RecipeAmountSource, AdditionalSupplyAmountSource } from '../src/model/shoppingList';
+import { AmountSource } from '../src/model/shoppingList';
 
 // Mock the supplies data
 jest.mock('../src/data/supplies.json', () => [
@@ -132,10 +132,15 @@ describe('aggregateShoppingList', () => {
     });
 
   const recipeSource = (p: { perPerson: number; recipe: string; day: number; crewCount: number }) =>
-    new RecipeAmountSource(p.perPerson, p.recipe, p.day, p.crewCount);
+    expect.objectContaining({
+      type: 'recipe', amount: p.perPerson, recipeName: p.recipe,
+      dayNumber: p.day, crewCount: p.crewCount,
+    });
 
   const additionalSupplySource = (p: { base: number; perPerson: boolean; perDay: boolean }) =>
-    new AdditionalSupplyAmountSource(p.base, p.perPerson, p.perDay);
+    expect.objectContaining({
+      type: 'additional', amount: p.base, isPerPerson: p.perPerson, isPerDay: p.perDay,
+    });
 
   const makeCrewMembers = (count: number): CrewMember[] =>
     Array.from({ length: count }, (_, i) => ({ id: `c${i}`, name: '', diet: 'omnivore' as const }));
@@ -300,8 +305,14 @@ describe('aggregateShoppingList', () => {
 
     expect(result).toEqual(expect.objectContaining({
       'Nieprawidłowe produkty': expect.arrayContaining([
-        item('missing-ing', 2, null),
-        item('missing-supply', 3, null),
+        expect.objectContaining({
+          supply: expect.objectContaining({ id: 'missing-ing', name: 'Nieprawidłowy produkt: missing-ing', unit: 'sztuki', isIngredient: true }),
+          amount: 2,
+        }),
+        expect.objectContaining({
+          supply: expect.objectContaining({ id: 'missing-supply', name: 'Nieprawidłowy produkt: missing-supply', unit: 'sztuki', isIngredient: false }),
+          amount: 3,
+        }),
       ]),
     }));
   });

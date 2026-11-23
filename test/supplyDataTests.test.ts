@@ -171,6 +171,23 @@ describe('Supply Validation', () => {
       expect(errors.category).toBe('Kategoria jest wymagana');
     });
 
+    it('should reject whitespace-only required fields', () => {
+      expect(validateSupplyData({ name: '  ', unit: '  ', category: '  ' })).toEqual(expect.objectContaining({
+        name: 'Nazwa produktu jest wymagana',
+        unit: 'Jednostka jest wymagana',
+        category: 'Kategoria jest wymagana',
+      }));
+    });
+
+    it.each(['nabiał', 'mięso', 'owoce', 'pieczywo', 'zboża', 'przyprawy', 'tłuszcze', 'napoje', 'środki czystości', 'inne'])(
+      'should accept ingredient category %s', category => {
+        const errors = validateSupplyData({
+          name: 'Test', unit: 'kg', category, isIngredient: true, isVegetarian: false, isVegan: false,
+        });
+        expect(errors.category).toBe('');
+      }
+    );
+
     it('should validate ingredient category', () => {
       const supply = {
         name: 'Test Ingredient',
@@ -280,6 +297,11 @@ describe('Supply Validation', () => {
 
       const errors = validateNewSupply(supply);
       expect(errors.name).toBe(`Produkt o nazwie "${existingSupply.name.toUpperCase()}" już istnieje`);
+    });
+
+    it('should trim whitespace around duplicate names', () => {
+      const name = getAllSupplies()[0].name.toUpperCase();
+      expect(validateNewSupply({ name: `  ${name}  ` }).name).toBe(`Produkt o nazwie "${name}" już istnieje`);
     });
   });
 });

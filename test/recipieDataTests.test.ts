@@ -127,6 +127,10 @@ describe('recipieData', () => {
     it('should return undefined if ingredient not found', () => {
       expect(getIngredientById('nonexistent')).toBeUndefined();
     });
+
+    it('should return undefined for a non-ingredient supply', () => {
+      expect(getIngredientById('supply1')).toBeUndefined();
+    });
   });
 
   describe('getRecipieIngredients', () => {
@@ -146,7 +150,10 @@ describe('recipieData', () => {
       const result = getRecipieIngredients([{ id: 'unknown', amount: 50 }]);
 
       expect(result).toHaveLength(1);
-      expect(result[0]).toEqual(expect.objectContaining({ id: 'unknown', amount: 50, name: 'Unknown (unknown)' }));
+      expect(result[0]).toEqual(expect.objectContaining({
+        id: 'unknown', amount: 50, name: 'Unknown (unknown)', unit: '',
+        category: 'inne', isVegetarian: false, isVegan: false,
+      }));
     });
   });
 

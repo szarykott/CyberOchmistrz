@@ -54,7 +54,7 @@ CyberOchmistrz/
 ├── .agents/skills/domain-glossary/
 │   └── SKILL.md               # Clarify domain terminology and maintain the glossary
 ├── .cursorignore              # Excludes build artifacts from Cursor indexing
-├── .github/workflows/         # PR checks, standalone model campaigns, and gh-pages deployment
+├── .github/workflows/         # PR checks and gh-pages deployment
 ├── .vscode/                   # Debug launch configs for Next.js
 ├── docs/                      # Domain documentation and Mermaid entity diagrams
 ├── public/                    # PWA manifest, static SVGs
@@ -158,7 +158,9 @@ npm run test:model -- --help
 `--seconds` accepts 1–86400 seconds **per engine**, including engine startup.
 Compilation has a separate two-minute limit. Engines run sequentially in the
 order properties, fuzz, mutation. Stryker finishes early when all mutants have
-been processed. Long campaigns are separate from `npm test`.
+been processed. Campaigns and the new property tests are opt-in: `npm test`
+excludes them, while `test:model:quick` includes the bounded property tests.
+CI runs only the existing test suite and build.
 
 Property campaigns rotate restoration, invalid-input validation, shopping-list
 aggregation, allocation, diet coverage, and cruise operation sequences. Each
@@ -210,12 +212,9 @@ exception. Use it with `--engine properties` or `--engine fuzz` to verify findin
 capture without changing production code. These synthetic findings exit 1 and
 are identified in their reports.
 
-The **Model testing campaigns** GitHub Actions workflow supports manual runs
-(default 600 seconds per engine) and nightly runs (3600 seconds per engine).
-Engines run as independent jobs; failure in one does not cancel another.
-Reports are uploaded even after a failing campaign and retained for 30 days.
-The fuzz corpus is cached between successful jobs. Generated reports, corpus,
-compiled targets, and mutation sandboxes are ignored by Git.
+Model campaigns have no GitHub Actions workflow or scheduled CI runs. Run them
+locally through the CLI. Generated reports, corpus, compiled targets, and
+mutation sandboxes are ignored by Git.
 
 ---
 

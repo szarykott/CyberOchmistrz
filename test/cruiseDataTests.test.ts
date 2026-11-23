@@ -47,6 +47,10 @@ describe('cruiseData', () => {
       expect(cruise.days[0]).toEqual(expect.objectContaining({ dayNumber: 1, recipes: [] }));
       expect(cruise.days[4].dayNumber).toBe(5);
     });
+
+    it('should reject predefined days when their count differs from the duration', () => {
+      expect(() => Cruise.createNew('Invalid', 2, [], [{ dayNumber: 1, recipes: [] }])).toThrow();
+    });
   });
 
   describe('saveCruise', () => {
@@ -137,5 +141,21 @@ describe('cruiseData', () => {
 
       expect(getCruiseById('nonexistent')).toBeUndefined();
     });
+  });
+
+  it('should avoid storage access when window is unavailable', () => {
+    const cruise = makeCruise();
+    const originalWindow = global.window;
+    try {
+      Object.defineProperty(global, 'window', { value: undefined });
+      expect(getCruises()).toEqual([]);
+      expect(getCruiseById(cruise.id)).toBeUndefined();
+      saveCruise(cruise);
+      deleteCruise(cruise.id);
+      expect(localStorageMock.getItem).not.toHaveBeenCalled();
+      expect(localStorageMock.setItem).not.toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(global, 'window', { value: originalWindow });
+    }
   });
 });

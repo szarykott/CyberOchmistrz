@@ -68,6 +68,15 @@ describe('cruise restoration', () => {
     ['invalid meal slot', (value: ReturnType<typeof data>) => { value.days[0].recipes[0].mealSlot = 'unknown'; }],
     ['missing snapshot field', (value: ReturnType<typeof data>) => { delete value.days[0].recipes[0].recipeData.instructions; }],
     ['invalid ingredient amount', (value: ReturnType<typeof data>) => { value.days[0].recipes[0].recipeData.ingredients[0].amount = '2'; }],
+    ['invalid recipe name', (value: ReturnType<typeof data>) => { value.days[0].recipes[0].recipeData.name = 1; }],
+    ['invalid recipe description', (value: ReturnType<typeof data>) => { value.days[0].recipes[0].recipeData.description = null; }],
+    ['invalid recipe difficulty', (value: ReturnType<typeof data>) => { value.days[0].recipes[0].recipeData.difficulty = '1'; }],
+    ['invalid assignment recipe ID', (value: ReturnType<typeof data>) => { value.days[0].recipes[0].originalRecipeId = 1; }],
+    ['invalid crew name', (value: ReturnType<typeof data>) => { value.crewMembers[0].name = 1; }],
+    ['invalid crew exclusions', (value: ReturnType<typeof data>) => { value.crewMembers[0].excludedSupplies = [1]; }],
+    ['invalid additional supply flags', (value: ReturnType<typeof data>) => { value.additionalSupplies = [{ id: 'water', amount: 1, isPerPerson: false, isPerDay: 'yes' }]; }],
+    ['prefixed start date', (value: ReturnType<typeof data>) => { value.startDate = 'x2030-01-01'; }],
+    ['suffixed start date', (value: ReturnType<typeof data>) => { value.startDate = '2030-01-01x'; }],
     ['invalid date', (value: ReturnType<typeof data>) => { value.dateModified = 'invalid'; }],
     ['incomplete start date', (value: ReturnType<typeof data>) => { value.startDate = '2030'; }],
     ['impossible start date', (value: ReturnType<typeof data>) => { value.startDate = '2030-02-30'; }],
@@ -81,6 +90,14 @@ describe('cruise restoration', () => {
     expect(() => getCruises()).toThrow();
     expect(() => saveCruise(Cruise.createNew('Other', 1, []))).toThrow();
     expect(localStorageMock.setItem).not.toHaveBeenCalled();
+  });
+
+  it('should reject non-finite nested numeric values', () => {
+    for (const amount of [Infinity, -Infinity, NaN]) {
+      const input = data();
+      input.days[0].recipes[0].recipeData.ingredients[0].amount = amount;
+      expect(() => Cruise.fromData(input)).toThrow();
+    }
   });
 
   it('should reject non-array stored data without deleting it', () => {
