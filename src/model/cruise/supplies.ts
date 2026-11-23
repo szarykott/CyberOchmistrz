@@ -1,6 +1,6 @@
 import { produce } from 'immer';
 import type { AdditionalSupplyCategoryGroup, AdditionalSupplyItem } from '../supply';
-import { getSupplyById } from '../supplyData';
+import { supplyRepository } from '../../data/supplyRepository';
 import type { Cruise } from './index';
 import { owned } from './internals';
 
@@ -108,7 +108,7 @@ export class Supplies {
     const grouped: { [key: string]: AdditionalSupplyItem[] } = {};
 
     this.#entries.forEach((item) => {
-      const supplyDetails = getSupplyById(item.id);
+      const supplyDetails = supplyRepository.getById(item.id);
       if (supplyDetails) {
         const category =
           supplyDetails.category ||

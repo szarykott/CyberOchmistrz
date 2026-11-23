@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getSuppliesByType, groupSuppliesByCategory } from '../model/supplyData';
+import { groupSuppliesByCategory } from '../model/supplyData';
+import { supplyRepository } from '../data/supplyRepository';
 import { declineUnit } from '../utils/polishDeclension';
 import IngredientAmountEditor from './IngredientAmountEditor';
 import { AdditionalSupplyCategoryGroup, CategoryGroup } from '@/model/supply';
@@ -17,7 +18,7 @@ export default function CruiseSuppliesTab() {
 
   // Load supplies directly, filtered by isIngredient flag
   useEffect(() => {
-    const allSupplies = getSuppliesByType(showIngredients);
+    const allSupplies = supplyRepository.getSuppliesByType(showIngredients);
 
     // Group supplies by category using the domain function
     const grouped = groupSuppliesByCategory(allSupplies);
@@ -34,35 +35,32 @@ export default function CruiseSuppliesTab() {
   }, [cruise]);
 
   const handleAddSupply = (supplyId: string) => {
-     setCruise(cruise.supplies.add({ id: supplyId, amount: 1, isPerDay: false, isPerPerson: false }));
+     void setCruise(current => current.supplies.add({ id: supplyId, amount: 1, isPerDay: false, isPerPerson: false }));
   };
 
   const handleUpdateAmount = (supplyId: string, amount: number, isPerPerson: boolean, isPerDay: boolean) => {
     if (amount < 0) return;
-    setCruise(cruise.supplies.upsert({ id: supplyId, amount, isPerPerson, isPerDay }));
+    void setCruise(current => current.supplies.upsert({ id: supplyId, amount, isPerPerson, isPerDay }));
   };
 
   const handleRemoveSupply = (supplyId: string, isPerPerson: boolean, isPerDay: boolean) => {
-    setCruise(cruise.supplies.remove(supplyId, isPerPerson, isPerDay));
+    void setCruise(current => current.supplies.remove(supplyId, isPerPerson, isPerDay));
   };
 
   const handleUpdateFlags = (supplyId: string, oldIsPerPerson: boolean, oldIsPerDay: boolean, newIsPerPerson: boolean, newIsPerDay: boolean) => {
     if (oldIsPerPerson === newIsPerPerson && oldIsPerDay === newIsPerDay) return;
-    if (cruise.supplies.has(supplyId, newIsPerPerson, newIsPerDay)) {
-      const existingAmount = cruise.supplies.amountFor(supplyId, newIsPerPerson, newIsPerDay);
+    void setCruise(current => {
+      const supply = current.supplies.find(supplyId, oldIsPerPerson, oldIsPerDay);
+      if (!supply) return current;
+      const existingAmount = current.supplies.amountFor(supplyId, newIsPerPerson, newIsPerDay);
       if (existingAmount !== null) {
         const confirmed = window.confirm(
           `Zmiana flag spowoduje połączenie z istniejącym wpisem (${existingAmount} ${declineUnit('sztuki', existingAmount)}). Czy chcesz kontynuować?`
         );
-        if (!confirmed) return;
+        if (!confirmed) return current;
       }
-    }
-
-    const supply = cruise.supplies.find(supplyId, oldIsPerPerson, oldIsPerDay);
-    if (!supply) return;
-    setCruise(cruise.supplies.changeScaling({
-      supply, perPerson: newIsPerPerson, perDay: newIsPerDay,
-    }));
+      return current.supplies.changeScaling({ supply, perPerson: newIsPerPerson, perDay: newIsPerDay });
+    });
   };
 
   const toggleShowIngredients = () => {

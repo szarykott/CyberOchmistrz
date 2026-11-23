@@ -1,7 +1,7 @@
 'use client';
 
 import { useDroppable } from '@dnd-kit/core';
-import { getRecipeById } from '../model/recipieData';
+import { recipieRepository } from '../data/recipieRepository';
 import { getMealCoverage, MealCoverage } from '../model/cruiseDietCoverage';
 import { CrewMember } from '../model/crew'
 import { CruiseDayRecipe } from '@/model/cruise';
@@ -130,7 +130,7 @@ export default function DroppableDayItem({
         <ul className="mt-2 text-xs md:text-sm text-muted">
           {recipes.slice(0, 2).map((recipe, index) => {
             const recipeData =
-              recipe.recipeData || getRecipeById(recipe.originalRecipeId);
+              recipe.recipeData || recipieRepository.getById(recipe.originalRecipeId);
             return (
               <li
                 key={`${recipe.originalRecipeId}-${index}`}

@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { SupplyValidationErrors } from '@/types';
 import { validateNewSupply, isSupplyDataValid } from '@/model/supplyData';
+import { supplyRepository } from '@/data/supplyRepository';
 import { Supply, Ingredient } from '@/model/supply';
 
 export default function AddSupplyForm() {
@@ -72,7 +73,7 @@ export default function AddSupplyForm() {
     };
 
     // Validate the data
-    const validationErrors = validateNewSupply(supplyData);
+    const validationErrors = validateNewSupply(supplyData, supplyRepository.getAll());
     setErrors(validationErrors);
 
     if (!isSupplyDataValid(validationErrors)) {

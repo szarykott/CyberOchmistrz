@@ -1,12 +1,14 @@
+import { supplyRepository } from '../../src/data/supplyRepository';
 import assert from 'node:assert/strict';
 import fc from 'fast-check';
 import { Cruise, CruiseDayRecipe } from '../../src/model/cruise';
 import { CrewMember, Diet } from '../../src/model/crew';
 import { MealType, Recipie } from '../../src/model/recipe';
 import { aggregateShoppingList } from '../../src/model/shoppingList';
-import { getAllSupplies, getIngredientById } from '../../src/model/supplyData';
 import { canEat, getMealCoverage } from '../../src/model/cruiseDietCoverage';
 import { CrewRecipeAllocationChecker } from '../../src/utils/maxFlow';
+
+const { getAll: getAllSupplies, getIngredientById } = supplyRepository;
 
 // Keep exhaustive allocation cheap: at most six people and four recipes.
 export const MAX_PEOPLE = 6;

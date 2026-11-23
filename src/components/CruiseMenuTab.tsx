@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getRecipeById } from '../model/recipieData';
+import { recipieRepository } from '../data/recipieRepository';
 import { generateMarkdown } from '../utils/markdownExport';
 import RecipeList from './RecipeList';
 import RecipeIngredientEditor from './RecipeIngredientEditor';
@@ -67,7 +67,7 @@ export default function CruiseMenuTab() {
   };
 
   const handleRemoveRecipe = (assignment: RecipeAssignment) => {
-    setCruise(cruise.mealPlan.removeRecipe({ assignment }));
+    void setCruise(current => current.mealPlan.removeRecipe({ assignment }));
   };
 
   const handleEditIngredients = (assignment: RecipeAssignment) => {
@@ -75,7 +75,7 @@ export default function CruiseMenuTab() {
   };
 
   const handleCrewCountChange = (assignment: RecipeAssignment, portions: number) => {
-    setCruise(cruise.mealPlan.changePortions({ assignment, portions }));
+    void setCruise(current => current.mealPlan.changePortions({ assignment, portions }));
   };
 
   const handleSaveRecipeEdits = (
@@ -83,7 +83,7 @@ export default function CruiseMenuTab() {
     ingredients: Array<{ id: string; amount: number }>,
   ) => {
     if (!editingRecipe) return;
-    setCruise(cruise.mealPlan.editAssignedRecipe({ assignment: editingRecipe, changes: { name, ingredients } }));
+    return setCruise(current => current.mealPlan.editAssignedRecipe({ assignment: editingRecipe, changes: { name, ingredients } }));
   };
 
   const closeIngredientEditor = () => {
@@ -94,7 +94,7 @@ export default function CruiseMenuTab() {
     setActiveId(event.active.id as string);
     const data = event.active.data.current;
     setActiveRecipe(data?.type === 'recipe' ? data.assignment.recipe :
-      data?.type === 'catalog-recipe' ? getRecipeById(data.recipeId) ?? null : null);
+      data?.type === 'catalog-recipe' ? recipieRepository.getById(data.recipeId) ?? null : null);
   };
 
   const handleDragOver = (event: DragOverEvent) => {
@@ -147,12 +147,13 @@ export default function CruiseMenuTab() {
       if (targetDay !== selectedDay) return;
 
       const recipeId: string = activeData.recipeId;
-      const fullRecipe = getRecipeById(recipeId);
+      const fullRecipe = recipieRepository.getById(recipeId);
       if (!fullRecipe) return;
 
-      setCruise(cruise.mealPlan.addRecipe({
-        day: targetDay, slot: targetSlot, recipe: fullRecipe,
-        portions: Math.max(1, cruise.crewMembers.length),
+      const destination = { day: targetDay, slot: targetSlot };
+      void setCruise(current => current.mealPlan.addRecipe({
+        ...destination, recipe: fullRecipe,
+        portions: Math.max(1, current.crewMembers.length),
       }));
       return;
     }
@@ -190,8 +191,9 @@ export default function CruiseMenuTab() {
     }
 
     if (targetDayNumber === undefined || !targetMealSlot) return;
-    setCruise(cruise.mealPlan.moveRecipe({
-      assignment, to: { day: targetDayNumber, slot: targetMealSlot }, before,
+    const destination = { day: targetDayNumber, slot: targetMealSlot };
+    void setCruise(current => current.mealPlan.moveRecipe({
+      assignment, to: destination, before,
     }));
   };
 

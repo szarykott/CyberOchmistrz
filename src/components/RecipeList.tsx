@@ -1,6 +1,7 @@
 "use client";
 
-import { getRecipies, isRecipieVegetarian, isRecipieVegan } from '@/model/recipieData';
+import { isRecipieVegetarian, isRecipieVegan } from '@/model/recipieData';
+import { recipieRepository } from '@/data/recipieRepository';
 import { useState } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import StarRating from './StarRating';
@@ -77,7 +78,7 @@ function DietBadge({ isVegetarian, isVegan }: { isVegetarian: boolean; isVegan: 
 }
 
 export default function RecipeList({ onSelectRecipie, selectedRecipieId, isDraggable = false }: RecipeListProps) {
-  const allRecipies = getRecipies();
+  const allRecipies = recipieRepository.getAll();
   const [filteredRecipies, setFilteredRecipies] = useState<Recipie[]>(allRecipies);
   const [filterType, setFilterType] = useState<string>('wszystkie');
   const [filterDiet, setFilterDiet] = useState<'all' | 'vegetarian' | 'vegan'>('all');

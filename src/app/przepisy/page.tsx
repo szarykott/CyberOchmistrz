@@ -4,13 +4,13 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import RecipeList from '@/components/RecipeList';
 import RecipeDetail from '@/components/RecipeDetail';
-import { getRecipies } from '@/model/recipieData';
+import { recipieRepository } from '@/data/recipieRepository';
 import { Recipie } from '@/model/recipe';
 
 export default function RecipesPage() {
   const [selectedDish, setSelectedDish] = useState<Recipie | null>(null);
   const [mobileView, setMobileView] = useState<'list' | 'detail'>('list');
-  const dishes = getRecipies();
+  const dishes = recipieRepository.getAll();
 
   // Auto-select first dish if no dish is selected
   useEffect(() => {

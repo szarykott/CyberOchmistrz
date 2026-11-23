@@ -1,21 +1,30 @@
 'use client';
 
 import { useState } from 'react';
-import { deleteCruise } from '../model/cruiseData';
+import { cruiseRepository } from '../data/cruiseRepository';
 import { useRouter } from 'next/navigation';
 import { DIET_REGISTRY, CrewMember } from '../model/crew';
-import { getSupplyById } from '../model/supplyData';
+import { supplyRepository } from '../data/supplyRepository';
 import { useCruise } from '@/app/rejsy/CruiseProvider';
 
 export default function CruiseInfoTab() {
   const router = useRouter();
   const [showMembers, setShowMembers] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const { cruise } = useCruise()
 
-  const handleDelete = () => {
-    if (confirm('Czy na pewno chcesz usunąć ten rejs?')) {
-      deleteCruise(cruise.id);
+  const handleDelete = async () => {
+    if (isDeleting || !confirm('Czy na pewno chcesz usunąć ten rejs?')) return;
+    setIsDeleting(true);
+    setDeleteError('');
+    try {
+      await cruiseRepository.delete(cruise.id);
       router.push('/rejsy');
+    } catch {
+      setDeleteError('Nie udało się usunąć rejsu');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -96,6 +105,7 @@ export default function CruiseInfoTab() {
         </div>
       </div>
 
+      {deleteError && <p role="alert" className="error-text">{deleteError}</p>}
       <div className="mt-4 md:mt-6 flex justify-end gap-3">
         <button
           onClick={() => router.push(`/rejsy/edytuj?id=${cruise.id}`)}
@@ -103,7 +113,7 @@ export default function CruiseInfoTab() {
         >
           Edytuj rejs
         </button>
-        <button onClick={handleDelete} className="btn-small btn-remove">
+        <button onClick={handleDelete} className="btn-small btn-remove" disabled={isDeleting}>
           Usuń rejs
         </button>
       </div>
@@ -120,7 +130,7 @@ function describeMember(member: CrewMember): string {
   }
 
   const exclusionNames = member.excludedSupplies
-    .map(id => getSupplyById(id)?.name ?? id)
+    .map(id => supplyRepository.getById(id)?.name ?? id)
     .join(', ');
 
   return `${name} — ${dietLabel}, wykluczone składniki: ${exclusionNames}`;

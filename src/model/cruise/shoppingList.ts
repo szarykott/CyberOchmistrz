@@ -1,6 +1,6 @@
 import type { CrewMember } from "../crew";
 import { Supply } from "../supply";
-import { getSupplyById } from "../supplyData";
+import { supplyRepository } from '../../data/supplyRepository';
 import type { CruiseDay } from "./mealPlan";
 import type { CruiseSupply } from "./supplies";
 
@@ -93,7 +93,7 @@ export function aggregateShoppingList(cruise: ShoppingListInput): AggregatedShop
       const recipeData = recipe.recipeData;
       if (recipeData) {
         recipeData.ingredients.forEach(ingredientAmount => {
-          let ingredient = getSupplyById(ingredientAmount.id);
+          let ingredient = supplyRepository.getById(ingredientAmount.id);
           if (!ingredient) {
             ingredient = createInvalidSupply(ingredientAmount.id, true);
           }
@@ -110,7 +110,7 @@ export function aggregateShoppingList(cruise: ShoppingListInput): AggregatedShop
   // 2. Add items from additional supplies
   if (cruise.additionalSupplies) {
     cruise.additionalSupplies.forEach(item => {
-      let supply = getSupplyById(item.id);
+      let supply = supplyRepository.getById(item.id);
       if (!supply) {
         supply = createInvalidSupply(item.id, false);
       }

@@ -1,5 +1,7 @@
+import { supplyRepository } from '../src/data/supplyRepository';
 import { Supply, Ingredient } from '../src/model/supply';
-import { getAllSupplies, getIngredients, getNonIngredients, getSupplyById, getIngredientById, getSuppliesByType } from '../src/model/supplyData';
+
+const { getAll: getAllSupplies, getById: getSupplyById, getIngredientById, getIngredients, getNonIngredients, getSuppliesByType } = supplyRepository;
 
 // Mocked data for testing
 const mockedSupplies: Supply[] = [

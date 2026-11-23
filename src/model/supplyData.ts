@@ -1,43 +1,5 @@
-'use client';
-
-import {SupplyValidationErrors} from '@/types';
-import suppliesData from '../data/supplies.json';
-import { Supply, Ingredient, CategoryGroup } from './supply';
-
-const supplies: readonly Supply[] = Object.freeze(
-  (suppliesData as Supply[]).map(supply => Object.freeze({ ...supply }))
-);
-const ingredients: readonly Ingredient[] = Object.freeze(
-  supplies.filter(supply => supply.isIngredient) as Ingredient[]
-);
-const nonIngredients: readonly Supply[] = Object.freeze(
-  supplies.filter(supply => !supply.isIngredient)
-);
-
-export function getAllSupplies(): readonly Supply[] {
-  return supplies;
-}
-
-export function getIngredients(): readonly Ingredient[] {
-  return ingredients;
-}
-
-export function getNonIngredients(): readonly Supply[] {
-  return nonIngredients;
-}
-
-export function getSupplyById(id: string): Supply | undefined {
-  return supplies.find(supply => supply.id === id);
-}
-
-export function getIngredientById(id: string): Ingredient | undefined {
-  const supply = getSupplyById(id);
-  return supply && supply.isIngredient ? supply as Ingredient : undefined;
-}
-
-export function getSuppliesByType(showIngredients: boolean): readonly Supply[] {
-  return showIngredients ? getIngredients() : getNonIngredients();
-}
+import type { SupplyValidationErrors } from '@/types';
+import type { CategoryGroup, Supply } from './supply';
 
 export function groupSuppliesByCategory(supplies: readonly Supply[]): CategoryGroup[] {
   const grouped: {[key: string]: Supply[]} = {};
@@ -110,12 +72,15 @@ export function isSupplyDataValid(errors: SupplyValidationErrors): boolean {
   return !Object.values(errors).some(error => error !== '');
 }
 
-export function validateNewSupply(supply: Partial<Supply & { isVegetarian?: boolean; isVegan?: boolean }>): SupplyValidationErrors {
+export function validateNewSupply(
+  supply: Partial<Supply & { isVegetarian?: boolean; isVegan?: boolean }>,
+  catalog: readonly Supply[],
+): SupplyValidationErrors {
   const errors = validateSupplyData(supply);
 
   // Check for duplicate names
   if (supply.name && supply.name.trim() !== '') {
-    const existingSupply = getAllSupplies().find(s =>
+    const existingSupply = catalog.find(s =>
       s.name.toLowerCase() === supply.name!.toLowerCase().trim()
     );
     if (existingSupply) {

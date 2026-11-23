@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from 'react';
-import { getAllSupplies } from '@/model/supplyData';
+import { supplyRepository } from '@/data/supplyRepository';
 import { Ingredient, Supply } from '@/model/supply';
 
 export default function SuppliesPage() {
@@ -12,13 +12,13 @@ export default function SuppliesPage() {
 
   // Get unique categories from supplies data
   const categories = useMemo(() => {
-    const uniqueCategories = Array.from(new Set(getAllSupplies().map((supply: Supply) => supply.category)));
+    const uniqueCategories = Array.from(new Set(supplyRepository.getAll().map((supply: Supply) => supply.category)));
     return uniqueCategories.sort();
   }, []);
 
   // Filter supplies based on current filters
   const filteredSupplies = useMemo(() => {
-    return getAllSupplies()
+    return supplyRepository.getAll()
       .filter((supply: Supply) => {
         // Text search filter
         if (searchText && !supply.name.toLowerCase().includes(searchText.toLowerCase())) {

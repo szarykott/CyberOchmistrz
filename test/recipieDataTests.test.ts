@@ -63,10 +63,14 @@ jest.mock('../src/data/supplies.json', () => [
   }
 ]);
 
+import { recipieRepository } from '../src/data/recipieRepository';
+import { supplyRepository } from '../src/data/supplyRepository';
 import suppliesData from '../src/data/supplies.json';
-import { getIngredientById as getSupplyIngredientById } from '../src/model/supplyData';
 import { Recipie, MealType, IngredientAmount } from '../src/model/recipe';
-import { getRecipies, getRecipeById, getIngredients, getIngredientById, getRecipieIngredients, isRecipieVegetarian, isRecipieVegan, createRecipie } from '../src/model/recipieData';
+import { getRecipieIngredients, isRecipieVegetarian, isRecipieVegan, createRecipie } from '../src/model/recipieData';
+
+const { getAll: getRecipies, getById: getRecipeById } = recipieRepository;
+const { getIngredientById, getIngredients } = supplyRepository;
 
 describe('recipieData', () => {
   /** Builds raw Recipie data for tests that need to bypass createRecipie (e.g. diet function defense-in-depth). */
@@ -103,7 +107,7 @@ describe('recipieData', () => {
 
   it('should share owned immutable ingredients across catalog lookups', () => {
     const ingredient = getIngredientById('czosnek');
-    expect(ingredient).toBe(getSupplyIngredientById('czosnek'));
+    expect(ingredient).toBe(getIngredients().find(item => item.id === 'czosnek'));
     expect(ingredient).not.toBe(suppliesData[0]);
     expect(Object.isFrozen(ingredient)).toBe(true);
     expect(Object.isFrozen(suppliesData[0])).toBe(false);

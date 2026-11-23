@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { getIngredients, getRecipies } from '@/model/recipieData';
+import { supplyRepository } from '@/data/supplyRepository';
+import { recipieRepository } from '@/data/recipieRepository';
 import IngredientListEditor from './IngredientListEditor';
 import { Recipie, MealType, IngredientAmount } from '@/model/recipe';
 
@@ -23,7 +24,7 @@ export default function NewRecipeForm({ recipe }: NewRecipeFormProps) {
   const [modifiedBy, setModifiedBy] = useState<string[]>([]);
   const [newModifier, setNewModifier] = useState<string>('');
 
-  const allIngredients = getIngredients();
+  const allIngredients = supplyRepository.getIngredients();
 
   // Initialize form with existing recipe data if provided
   useEffect(() => {
@@ -121,7 +122,7 @@ export default function NewRecipeForm({ recipe }: NewRecipeFormProps) {
       : [MealType.DINNER];
 
     // Check for duplicate name
-    const allRecipies = getRecipies();
+    const allRecipies = recipieRepository.getAll();
     const isDuplicateName = allRecipies.some(r =>
       r.name.toLowerCase() === recipeName.trim().toLowerCase() &&
       r.id !== recipeId

@@ -1,10 +1,10 @@
-import { createContext, ReactNode, useContext, useState, useRef } from 'react';
+import { createContext, ReactNode, useContext, useEffect, useState, useRef } from 'react';
 import { Cruise } from '@/model/cruise';
-import { saveCruise, getCruiseById } from '@/model/cruiseData';
+import { cruiseRepository } from '@/data/cruiseRepository';
 
 type CruiseContextValue = {
   cruise: Cruise,
-  setCruise: (cruise: Cruise) => void
+  setCruise: (update: (cruise: Cruise) => Cruise) => Promise<void>
 }
 
 type CruiseProviderProps = {
@@ -15,26 +15,50 @@ type CruiseProviderProps = {
 const CruiseContext = createContext<CruiseContextValue>(null!);
 
 export function CruiseProvider({ cruiseId, children }: CruiseProviderProps) {
-  const initialCruise = getCruiseById(cruiseId);
-  if (initialCruise === undefined) {
-    throw new Error(`could not find cruise ${cruiseId}`);
-  }
+  const [cruise, setCruiseState] = useState<Cruise>();
+  const [loadError, setLoadError] = useState('');
+  const [saveError, setSaveError] = useState('');
+  const currentCruise = useRef<Cruise>(undefined);
+  const saveQueue = useRef(Promise.resolve());
 
-  const [cruise, setCruiseState] = useState<Cruise>(initialCruise);
+  useEffect(() => {
+    let active = true;
+    cruiseRepository.getById(cruiseId).then(found => {
+      if (!active) return;
+      if (!found) {
+        setLoadError('Nie znaleziono rejsu');
+        return;
+      }
+      currentCruise.current = found;
+      setCruiseState(found);
+    }, () => {
+      if (active) setLoadError('Nie udało się wczytać rejsu');
+    });
+    return () => { active = false; };
+  }, [cruiseId]);
 
-  const currentCruise = useRef(cruise);
+  const setCruise: CruiseContextValue['setCruise'] = (update) => {
+    const saved = saveQueue.current.then(async () => {
+      const current = currentCruise.current!;
+      const next = update(current);
+      if (next === current) return;
+      await cruiseRepository.save(next);
+      currentCruise.current = next;
+      setCruiseState(next);
+      setSaveError('');
+    });
+    saveQueue.current = saved.catch(() => setSaveError('Nie udało się zapisać zmian w rejsie'));
+    return saved;
+  };
 
-  const setCruise = (cruise: Cruise) => {
-    if (cruise === currentCruise.current) return;
-    saveCruise(cruise);
-    currentCruise.current = cruise;
-    setCruiseState(cruise);
-  }
+  if (loadError) return <p role="alert" className="error-text">{loadError}</p>;
+  if (!cruise) return <p role="status">Wczytywanie rejsu…</p>;
 
   const value: CruiseContextValue = {cruise, setCruise};
 
   return (
   <CruiseContext.Provider value={value}>
+    {saveError && <p role="alert" className="error-text">{saveError}</p>}
     {children}
   </CruiseContext.Provider>)
 }

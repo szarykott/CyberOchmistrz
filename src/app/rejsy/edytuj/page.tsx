@@ -1,7 +1,6 @@
 "use client";
 
 import EditCruiseForm from "../../../components/EditCruiseForm";
-import { getCruiseById } from "../../../model/cruiseData";
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { CruiseProvider } from "../CruiseProvider";
@@ -14,16 +13,6 @@ function EditCruiseContent() {
     return (
       <div className="container-centered container-max-w-sm p-6 container-white">
         <p className="text-xl text-muted-dark">Brak identyfikatora rejsu</p>
-      </div>
-    );
-  }
-
-  const cruise = getCruiseById(id);
-
-  if (!cruise) {
-    return (
-      <div className="container-centered container-max-w-sm p-6 container-white">
-        <p className="text-xl text-muted-dark">Nie znaleziono rejsu</p>
       </div>
     );
   }

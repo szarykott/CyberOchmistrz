@@ -1,8 +1,8 @@
 import { Cruise } from '../src/model/cruise';
-import { getCruises, getCruiseById, saveCruise, deleteCruise } from '../src/model/cruiseData';
+import { cruiseRepository } from '../src/data/cruiseRepository';
 import { setupCruises, clearCruises, getStoredCruises, localStorageMock, makeCrewMembers } from './cruiseTestHarness';
 
-describe('cruiseData', () => {
+describe('cruiseRepository', () => {
   // createNew auto-generates id/dates; spread overrides pin a deterministic ID.
   const makeCruise = (overrides?: Partial<Cruise>): Cruise => {
     const base = Cruise.createNew(
@@ -54,7 +54,7 @@ describe('cruiseData', () => {
   });
 
   describe('saveCruise', () => {
-    it('should save a new cruise to localStorage', () => {
+    it('should save a new cruise to localStorage', async () => {
       const cruise = makeCruise({
         days: [
           { dayNumber: 1, recipes: [] },
@@ -63,12 +63,12 @@ describe('cruiseData', () => {
         ],
       });
 
-      saveCruise(cruise);
+      await cruiseRepository.save(cruise);
 
       expectCruisesStored([cruise]);
     });
 
-    it('should update an existing cruise and modify dateModified', () => {
+    it('should update an existing cruise and modify dateModified', async () => {
       // Fake timers so dateModified provably advances between create and update
       // (both calls would otherwise land in the same millisecond).
       jest.useFakeTimers();
@@ -79,7 +79,7 @@ describe('cruiseData', () => {
 
       jest.setSystemTime(new Date('2030-06-01T00:00:01.000Z')); // +1s
       const updatedCruise = initialCruise.rename('Updated Name');
-      saveCruise(updatedCruise);
+      await cruiseRepository.save(updatedCruise);
 
       const stored = getStoredCruises();
 
@@ -91,67 +91,69 @@ describe('cruiseData', () => {
   });
 
   describe('deleteCruise', () => {
-    it('should delete a cruise from localStorage', () => {
+    it('should delete a cruise from localStorage', async () => {
       const cruise1 = makeCruise();
       const cruise2 = makeCruise({ id: 'test-cruise-2', name: 'Cruise 2', dateCreated: '2023-01-02T00:00:00.000Z', dateModified: '2023-01-02T00:00:00.000Z', crewMembers: makeCrewMembers(3) });
       setupCruises([cruise1, cruise2]);
 
-      deleteCruise('test-cruise-1');
+      await cruiseRepository.delete('test-cruise-1');
 
       expectCruisesStored([cruise2]);
     });
 
-    it('should do nothing if cruise to delete does not exist', () => {
+    it('should do nothing if cruise to delete does not exist', async () => {
       const cruise = makeCruise();
       setupCruises([cruise]);
 
-      deleteCruise('nonexistent-id');
+      await cruiseRepository.delete('nonexistent-id');
 
       expectCruisesStored([cruise]);
     });
   });
 
   describe('getCruises', () => {
-    it('should return empty array when no cruises in localStorage', () => {
+    it('should return empty array when no cruises in localStorage', async () => {
       localStorageMock.getItem.mockReturnValue(null);
 
-      expect(getCruises()).toEqual([]);
+      expect(await cruiseRepository.getAll()).toEqual([]);
     });
 
-    it('should return cruises from localStorage', () => {
+    it('should return cruises from localStorage', async () => {
       const cruise = makeCruise();
       localStorageMock.getItem.mockReturnValue(JSON.stringify([cruise]));
 
-      expect(getCruises()).toEqual([cruise]);
+      expect(await cruiseRepository.getAll()).toEqual([cruise]);
     });
   });
 
   describe('getCruiseById', () => {
-    it('should return the cruise with the given id', () => {
+    it('should return the cruise with the given id', async () => {
       const cruise1 = makeCruise();
       const cruise2 = makeCruise({ id: 'test-cruise-2', name: 'Cruise 2', dateCreated: '2023-01-02T00:00:00.000Z', dateModified: '2023-01-02T00:00:00.000Z', crewMembers: makeCrewMembers(3) });
       localStorageMock.getItem.mockReturnValue(JSON.stringify([cruise1, cruise2]));
 
-      expect(getCruiseById('test-cruise-2')).toEqual(cruise2);
+      const restored = await cruiseRepository.getById('test-cruise-2');
+      expect(restored).toBeInstanceOf(Cruise);
+      expect(restored).toEqual(cruise2);
     });
 
-    it('should return undefined if cruise not found', () => {
+    it('should return undefined if cruise not found', async () => {
       const cruise = makeCruise();
       localStorageMock.getItem.mockReturnValue(JSON.stringify([cruise]));
 
-      expect(getCruiseById('nonexistent')).toBeUndefined();
+      expect(await cruiseRepository.getById('nonexistent')).toBeUndefined();
     });
   });
 
-  it('should avoid storage access when window is unavailable', () => {
+  it('should avoid storage access when window is unavailable', async () => {
     const cruise = makeCruise();
     const originalWindow = global.window;
     try {
       Object.defineProperty(global, 'window', { value: undefined });
-      expect(getCruises()).toEqual([]);
-      expect(getCruiseById(cruise.id)).toBeUndefined();
-      saveCruise(cruise);
-      deleteCruise(cruise.id);
+      expect(await cruiseRepository.getAll()).toEqual([]);
+      expect(await cruiseRepository.getById(cruise.id)).toBeUndefined();
+      await cruiseRepository.save(cruise);
+      await cruiseRepository.delete(cruise.id);
       expect(localStorageMock.getItem).not.toHaveBeenCalled();
       expect(localStorageMock.setItem).not.toHaveBeenCalled();
     } finally {

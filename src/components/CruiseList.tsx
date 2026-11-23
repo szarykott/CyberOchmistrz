@@ -1,19 +1,27 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { getCruises, saveCruise } from '../model/cruiseData';
+import { cruiseRepository } from '../data/cruiseRepository';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { exportCruise, importCruiseFromFile } from '../utils/cruiseFileIO';
 import { Cruise } from '@/model/cruise';
 
 export default function CruiseList() {
-  const [cruises, setCruises] = useState<Cruise[]>([]);
+  const [cruises, setCruises] = useState<Cruise[]>();
+  const [loadError, setLoadError] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   const router = useRouter();
   const importInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setCruises(getCruises());
+    let active = true;
+    cruiseRepository.getAll().then(items => {
+      if (active) setCruises(items);
+    }, () => {
+      if (active) setLoadError(true);
+    });
+    return () => { active = false; };
   }, []);
 
   const handleExport = (e: React.MouseEvent, cruise: Cruise) => {
@@ -27,19 +35,22 @@ export default function CruiseList() {
 
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || isImporting) return;
     e.target.value = '';
+    setIsImporting(true);
     try {
       const cruise = await importCruiseFromFile(file);
-      const existing = getCruises().find(c => c.id === cruise.id);
+      const existing = await cruiseRepository.getById(cruise.id);
       if (existing) {
         const confirmed = window.confirm('Rejs o tej nazwie już istnieje. Nadpisać?');
         if (!confirmed) return;
       }
-      saveCruise(cruise);
-      setCruises(getCruises());
+      await cruiseRepository.save(cruise);
+      setCruises(await cruiseRepository.getAll());
     } catch (err) {
       window.alert(`Nieprawidłowy plik rejsu: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -71,6 +82,7 @@ export default function CruiseList() {
           </Link>
           <button
             onClick={handleImportClick}
+            disabled={!cruises || isImporting}
             className="btn-secondary rounded-full px-3 py-1.5 md:px-4 md:py-2 text-sm md:text-base"
           >
             Importuj z pliku
@@ -78,7 +90,11 @@ export default function CruiseList() {
         </div>
       </div>
 
-      {cruises.length === 0 ? (
+      {loadError ? (
+        <p role="alert" className="error-text">Nie udało się wczytać rejsów</p>
+      ) : !cruises ? (
+        <p role="status">Wczytywanie rejsów…</p>
+      ) : cruises.length === 0 ? (
         <div className="text-center empty-state">
           <p className="text-muted">Brak zapisanych rejsów</p>
           <Link

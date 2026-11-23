@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { CrewMember } from '../model/crew';
 import { addCrewMember, Diet, DIET_REGISTRY, removeCrewMember, updateCrewMember } from '../model/crew';
-import { getIngredients, getSupplyById } from '../model/supplyData';
+import { supplyRepository } from '../data/supplyRepository';
 
 interface CrewEditorProps {
   members: CrewMember[];
@@ -154,7 +154,7 @@ function MemberExclusionsEditor({ member, onExclusionsChange }: MemberExclusions
   const excluded = member.excludedSupplies ?? [];
   const excludedSet = new Set(excluded);
 
-  const filteredIngredients = getIngredients()
+  const filteredIngredients = supplyRepository.getIngredients()
     .filter(ing => !excludedSet.has(ing.id))
     .filter(ing => filter === '' || ing.name.toLowerCase().includes(filter.toLowerCase()));
 
@@ -205,7 +205,7 @@ function MemberExclusionsEditor({ member, onExclusionsChange }: MemberExclusions
           {excluded.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-0.5">
               {excluded.map(id => {
-                const supply = getSupplyById(id);
+                const supply = supplyRepository.getById(id);
                 return (
                   <span
                     key={id}

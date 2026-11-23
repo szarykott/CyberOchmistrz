@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { getIngredients } from '../model/supplyData';
+import { supplyRepository } from '../data/supplyRepository';
 import IngredientListEditor from './IngredientListEditor';
 import { Recipie } from '@/model/recipe';
 
@@ -10,7 +10,7 @@ interface RecipeIngredientEditorProps {
   onSave: (
     name: string,
     ingredients: Array<{ id: string; amount: number }>
-  ) => void;
+  ) => void | Promise<void>;
   onClose: () => void;
 }
 
@@ -19,13 +19,14 @@ export default function RecipeIngredientEditor({
   onSave,
   onClose
 }: RecipeIngredientEditorProps) {
-  const allIngredients = getIngredients();
+  const allIngredients = supplyRepository.getIngredients();
 
   const [draftName, setDraftName] = useState(recipe.name);
   const [draftIngredients, setDraftIngredients] = useState<Array<{ id: string; amount: number }>>(
     () => recipe.ingredients.map(i => ({ ...i }))
   );
   const [saveError, setSaveError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   const isDirty =
@@ -48,16 +49,20 @@ export default function RecipeIngredientEditor({
     setDraftIngredients(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    setIsSaving(true);
     try {
-      onSave(draftName, draftIngredients);
+      await onSave(draftName, draftIngredients);
       onClose();
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : 'Nie udało się zapisać przepisu');
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const handleCancelAttempt = () => {
+    if (isSaving) return;
     if (isDirty) {
       setShowCancelConfirm(true);
     } else {
@@ -132,6 +137,7 @@ export default function RecipeIngredientEditor({
           </button>
           <button
             onClick={handleSave}
+            disabled={isSaving}
             className="btn-primary"
           >
             Zapisz

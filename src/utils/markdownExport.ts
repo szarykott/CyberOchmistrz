@@ -1,6 +1,6 @@
-import { getSupplyById } from '../model/supplyData';
+import { supplyRepository } from '../data/supplyRepository';
 import { declineUnit } from './polishDeclension';
-import { getRecipeById } from '../model/recipieData';
+import { recipieRepository } from '../data/recipieRepository';
 import { CruiseDayRecipe, Cruise } from '../model/cruise';
 import { MealType } from '../model/recipe';
 
@@ -21,7 +21,7 @@ function formatDayHeader(startDate: string | undefined, dayNumber: number): stri
 }
 
 function formatIngredient(id: string, totalAmount: number): string {
-  const supply = getSupplyById(id);
+  const supply = supplyRepository.getById(id);
   if (supply) {
     return `- ${totalAmount} ${declineUnit(supply.unit, totalAmount)} ${supply.name}`;
   }
@@ -90,7 +90,7 @@ function generateVariantRecipeLines(group: CruiseDayRecipe[], key: string): stri
   lines.push("Zmodyfikowana wersja przepisu wymaga od kuka okrętowego inwencji twórczej podczas gotowania!");
   lines.push("");
 
-  const catalogRecipe = getRecipeById(key);
+  const catalogRecipe = recipieRepository.getById(key);
   const instructions = catalogRecipe ? catalogRecipe.instructions : sortedGroup[0].recipeData.instructions;
   lines.push("Sposób przygotowania:");
   instructions.forEach((step, i) => {

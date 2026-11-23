@@ -1,5 +1,8 @@
-import { getAllSupplies, getIngredients, getNonIngredients, groupSuppliesByCategory } from '../src/model/supplyData';
+import { supplyRepository } from '../src/data/supplyRepository';
+import { groupSuppliesByCategory } from '../src/model/supplyData';
 import { SupplyValidationErrors } from '../src/types';
+
+const { getAll: getAllSupplies, getIngredients, getNonIngredients } = supplyRepository;
 
 describe('supplyData functions', () => {
   const findGroup = (groups: CategoryGroup[], category: string) =>
@@ -266,7 +269,7 @@ describe('Supply Validation', () => {
         isIngredient: false
       };
 
-      const errors = validateNewSupply(supply);
+      const errors = validateNewSupply(supply, supplyRepository.getAll());
       expect(errors.name).toBe('');
       expect(errors.unit).toBe('');
       expect(errors.category).toBe('');
@@ -282,7 +285,7 @@ describe('Supply Validation', () => {
         isIngredient: false
       };
 
-      const errors = validateNewSupply(supply);
+      const errors = validateNewSupply(supply, supplyRepository.getAll());
       expect(errors.name).toBe(`Produkt o nazwie "${existingSupply.name}" już istnieje`);
     });
 
@@ -295,13 +298,13 @@ describe('Supply Validation', () => {
         isIngredient: false
       };
 
-      const errors = validateNewSupply(supply);
+      const errors = validateNewSupply(supply, supplyRepository.getAll());
       expect(errors.name).toBe(`Produkt o nazwie "${existingSupply.name.toUpperCase()}" już istnieje`);
     });
 
     it('should trim whitespace around duplicate names', () => {
       const name = getAllSupplies()[0].name.toUpperCase();
-      expect(validateNewSupply({ name: `  ${name}  ` }).name).toBe(`Produkt o nazwie "${name}" już istnieje`);
+      expect(validateNewSupply({ name: `  ${name}  ` }, supplyRepository.getAll()).name).toBe(`Produkt o nazwie "${name}" już istnieje`);
     });
   });
 });

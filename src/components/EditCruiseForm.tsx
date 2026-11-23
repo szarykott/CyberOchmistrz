@@ -9,6 +9,7 @@ import { useCruise } from '@/app/rejsy/CruiseProvider';
 export default function EditCruiseForm() {
   const router = useRouter();
   const { cruise, setCruise } = useCruise();
+  const [isSaving, setIsSaving] = useState(false);
 
   const [formData, setFormData] = useState<{
     name: string;
@@ -66,10 +67,10 @@ export default function EditCruiseForm() {
     return !Object.values(newErrors).some((e) => e !== '');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateForm()) {
+    if (isSaving || !validateForm()) {
       return;
     }
 
@@ -85,13 +86,22 @@ export default function EditCruiseForm() {
       }
     }
 
-    const updated = cruise.organization
-      .rename(formData.name)
-      .organization.changeDuration(formData.length)
-      .crew.replace(formData.crewMembers);
-    setCruise(formData.startDate
-      ? updated.organization.changeStartDate(formData.startDate)
-      : updated.organization.clearStartDate());
+    setIsSaving(true);
+    try {
+      await setCruise(current => {
+        const updated = current.organization
+          .rename(formData.name)
+          .organization.changeDuration(formData.length)
+          .crew.replace(formData.crewMembers);
+        return formData.startDate
+          ? updated.organization.changeStartDate(formData.startDate)
+          : updated.organization.clearStartDate();
+      });
+    } catch {
+      return;
+    } finally {
+      setIsSaving(false);
+    }
 
     router.push(`/rejsy?id=${cruise.id}`);
   };
@@ -165,7 +175,7 @@ export default function EditCruiseForm() {
         </div>
 
         <div className="flex gap-4 pt-4">
-          <button type="submit" className="btn-primary">
+          <button type="submit" className="btn-primary" disabled={isSaving}>
             Zapisz zmiany
           </button>
           <button

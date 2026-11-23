@@ -70,7 +70,10 @@ CyberOchmistrz/
 │   │   └── skladniki/         # /skladniki — supplies catalog, add
 │   ├── components/            # All React components (see below)
 │   │   └── AGENTS.md          # Component conventions for AI agents
-│   ├── data/                  # Static JSON catalogs
+│   ├── data/                  # Repositories and static JSON catalogs
+│   │   ├── cruiseRepository.ts # Asynchronous cruise access backed by localStorage
+│   │   ├── recipieRepository.ts # Read-only recipe catalog
+│   │   ├── supplyRepository.ts # Read-only supply and ingredient catalog
 │   │   ├── recipies.json      # ~20 recipes with ingredients, instructions
 │   │   └── supplies.json      # ~100 supplies with units, categories, veg flags
 │   ├── model/                 # Domain logic (no UI)
@@ -84,14 +87,13 @@ CyberOchmistrz/
 │   │   │   ├── shoppingList.ts # Derived shopping list and CSV generation
 │   │   │   ├── restoration.ts # Validation of serialized cruise data
 │   │   │   └── internals.ts   # Shared immutable copying and ID generation
-│   │   ├── cruiseData.ts      # Cruise persistence in browser storage
 │   │   ├── cruiseDietCoverage.ts  # Max-flow diet coverage (Dinic's algorithm), smart crewCount defaults
 │   │   ├── crew.ts            # Crew member types, diet registry, and draft edits
-│   │   ├── recipieData.ts     # Recipe loading, ingredient resolution, veg checks
+│   │   ├── recipieData.ts     # Recipe creation, ingredient resolution, veg checks
 │   │   ├── recipe.ts          # Recipe and ingredient quantity types
 │   │   ├── shoppingList.ts    # Compatibility exports for shopping list helpers
 │   │   ├── supply.ts          # Supply and ingredient types
-│   │   └── supplyData.ts      # Immutable supply catalog, filtering, validation
+│   │   └── supplyData.ts      # Supply grouping and validation
 │   ├── types/                 # TypeScript interfaces and enums
 │   │   └── index.ts           # Shared UI types
 │   └── utils/
@@ -231,10 +233,10 @@ mutation sandboxes are ignored by Git.
 
 No state library (Redux, Zustand, etc.). Pattern:
 
-- **Static data:** JSON catalogs are bundled with the application. Supply APIs share an owned, immutable catalog and read-only views.
-- **Persistent data:** `localStorage` access has an SSR guard (`typeof window === 'undefined'` returns empty). `getCruises()` and `getCruiseById()` restore immutable `Cruise` instances synchronously.
+- **Static data:** Recipe and supply repositories read bundled JSON and return domain objects synchronously. Supply queries share an owned, immutable catalog and read-only views.
+- **Persistent data:** `cruiseRepository` exposes asynchronous queries and writes. It uses `localStorage` in the browser and restores immutable `Cruise` instances before returning them.
 - **Restoration:** file imports and stored data are parsed as `unknown` and validated by `Cruise.fromData` before use or persistence. Existing cruise IDs and recipe snapshots are preserved; new cruise IDs are UUIDs.
-- **Cruise state:** `Cruise` exposes operations through `organization`, `crew`, `mealPlan`, and `supplies`. Changes return a full immutable cruise snapshot and no-op calls return the original instance. Assignments own recipe snapshots and expose handles for edits, moves, and removal. `shoppingList.aggregate()` derives quantities from the current cruise. The cruise provider publishes changed instances and skips publication when an operation returns the same instance.
+- **Cruise state:** `Cruise` exposes operations through `organization`, `crew`, `mealPlan`, and `supplies`. Changes return a full immutable cruise snapshot and no-op calls return the original instance. Assignments own recipe snapshots and expose handles for edits, moves, and removal. `shoppingList.aggregate()` derives quantities from the current cruise. The cruise provider applies changes in order and publishes each changed instance after a successful save.
 - **Component state:** React `useState` + `useEffect` handles local state and hydration.
 
 ---

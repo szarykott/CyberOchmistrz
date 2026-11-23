@@ -1,6 +1,6 @@
 import { Cruise } from '../src/model/cruise';
 import { MealType } from '../src/model/recipe';
-import { getCruises, saveCruise } from '../src/model/cruiseData';
+import { cruiseRepository } from '../src/data/cruiseRepository';
 import { importCruiseFromFile } from '../src/utils/cruiseFileIO';
 import { clearCruises, localStorageMock, makeCrewMembers } from './cruiseTestHarness';
 
@@ -28,14 +28,14 @@ describe('cruise restoration', () => {
     expect(Object.isFrozen(restored.days[0].recipes[0].recipeData.ingredients)).toBe(true);
   });
 
-  it('should keep legacy assignment identities stable without writing storage', () => {
+  it('should keep legacy assignment identities stable without writing storage', async () => {
     const input = data();
     delete input.additionalSupplies;
     delete input.days[0].recipes[0].assignmentId;
     localStorageMock.setItem('cyber-ochmistrz-cruises', JSON.stringify([input]));
     jest.clearAllMocks();
-    const first = getCruises()[0];
-    const second = getCruises()[0];
+    const first = (await cruiseRepository.getAll())[0];
+    const second = (await cruiseRepository.getAll())[0];
     const assignment = first.getRecipeAssignments({ day: 1, slot: MealType.DINNER })[0];
     expect(second.changePortions({ assignment, portions: 3 }).days[0].recipes[0].crewCount).toBe(3);
     expect(first.additionalSupplies).toEqual([]);
@@ -87,8 +87,8 @@ describe('cruise restoration', () => {
     await expect(importCruiseFromFile(file(input))).rejects.toThrow();
     localStorageMock.setItem('cyber-ochmistrz-cruises', JSON.stringify([input]));
     jest.clearAllMocks();
-    expect(() => getCruises()).toThrow();
-    expect(() => saveCruise(Cruise.createNew('Other', 1, []))).toThrow();
+    await expect(cruiseRepository.getAll()).rejects.toThrow();
+    await expect(cruiseRepository.save(Cruise.createNew('Other', 1, []))).rejects.toThrow();
     expect(localStorageMock.setItem).not.toHaveBeenCalled();
   });
 
@@ -100,10 +100,10 @@ describe('cruise restoration', () => {
     }
   });
 
-  it('should reject non-array stored data without deleting it', () => {
+  it('should reject non-array stored data without deleting it', async () => {
     localStorageMock.setItem('cyber-ochmistrz-cruises', JSON.stringify(data()));
     jest.clearAllMocks();
-    expect(() => getCruises()).toThrow();
+    await expect(cruiseRepository.getAll()).rejects.toThrow();
     expect(localStorageMock.setItem).not.toHaveBeenCalled();
     expect(localStorageMock.removeItem).not.toHaveBeenCalled();
   });

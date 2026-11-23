@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import NewRecipeForm from '@/components/NewRecipeForm';
-import { getRecipeById } from '@/model/recipieData';
+import { recipieRepository } from '@/data/recipieRepository';
 import { Recipie } from '@/model/recipe';
 
 function EditRecipeForm(){
@@ -15,7 +15,7 @@ function EditRecipeForm(){
 
   useEffect(() => {
     if (recipeId) {
-      const foundRecipe = getRecipeById(recipeId);
+      const foundRecipe = recipieRepository.getById(recipeId);
       setRecipe(foundRecipe || null);
     }
     setIsLoading(false);

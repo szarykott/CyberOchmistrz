@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { saveCruise } from '../model/cruiseData';
+import { cruiseRepository } from '../data/cruiseRepository';
 import { useRouter } from 'next/navigation';
 import { CrewMember } from '../model/crew';
 import { Cruise } from '../model/cruise'
@@ -9,6 +9,8 @@ import CrewEditor from './CrewEditor';
 
 export default function AddCruiseForm() {
   const router = useRouter();
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [formData, setFormData] = useState<{
     name: string;
     length: number;
@@ -74,10 +76,10 @@ export default function AddCruiseForm() {
     return !Object.values(newErrors).some((error) => error !== '');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateForm()) {
+    if (isSaving || !validateForm()) {
       return;
     }
 
@@ -90,8 +92,16 @@ export default function AddCruiseForm() {
       formData.startDate || undefined,
     );
 
-    saveCruise(newCruise);
-    router.push('/rejsy');
+    setIsSaving(true);
+    setSaveError('');
+    try {
+      await cruiseRepository.save(newCruise);
+      router.push('/rejsy');
+    } catch {
+      setSaveError('Nie udało się zapisać rejsu');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -162,8 +172,9 @@ export default function AddCruiseForm() {
           {errors.startDate && <p className="error-text">{errors.startDate}</p>}
         </div>
 
+        {saveError && <p role="alert" className="error-text">{saveError}</p>}
         <div className="flex gap-4 pt-4">
-          <button type="submit" className="btn-primary">
+          <button type="submit" className="btn-primary" disabled={isSaving}>
             Zapisz rejs
           </button>
           <button

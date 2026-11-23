@@ -5,7 +5,7 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import DraggableRecipeItem from './DraggableRecipeItem';
 import { getMealCoverage, MealCoverage } from '../model/cruiseDietCoverage';
 import { Diet, DIET_REGISTRY, CrewMember } from '../model/crew';
-import { getSupplyById } from '../model/supplyData';
+import { supplyRepository } from '../data/supplyRepository';
 import { declineUnit } from '../utils/polishDeclension';
 import { CruiseDayRecipe, RecipeAssignment } from '@/model/cruise';
 import { MealType } from '@/model/recipe';
@@ -228,7 +228,7 @@ function CoverageDisplay({ coverage, isSlotEmpty }: CoverageDisplayProps) {
                 Wykluczone składniki:{' '}
                 {exclusionEntries
                   .map(([id, count]) => {
-                    const name = getSupplyById(id)?.name ?? id;
+                    const name = supplyRepository.getById(id)?.name ?? id;
                     return `${name} (${count} ${declineUnit('załogant', count)})`;
                   })
                   .join(', ')}
