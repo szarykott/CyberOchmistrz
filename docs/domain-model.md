@@ -56,7 +56,7 @@ erDiagram
 - A meal slot is identified by a day and a meal type. It is represented by `RecipeAssignment.mealSlot`, not a separate object. Multiple assignments can share the same slot. Meal types are `śniadanie`, `obiad`, `kolacja`, and `przekąska`.
 - `crewCount` means portions for that assignment, not the number of people in the cruise's crew.
 
-Source: [cruise.ts](../src/model/cruise.ts), [crew.ts](../src/model/crew.ts), [cruiseDietCoverage.ts](../src/model/cruiseDietCoverage.ts).
+The aggregate exposes organization, crew, and meal plan operations through `cruise.organization`, `cruise.crew`, and `cruise.mealPlan`. Each edit returns a full cruise snapshot. Cruise duration is derived from meal plan days, so changing duration and removing assignments on removed days happen in the same operation. The root keeps the cruise ID and timestamps and exposes frozen compatibility fields in the original serialized shape. [Cruise](../src/model/cruise/index.ts), [organization](../src/model/cruise/organization.ts), [crew](../src/model/cruise/crew.ts), [meal plan](../src/model/cruise/mealPlan.ts), [restoration](../src/model/cruise/restoration.ts), [diet coverage](../src/model/cruiseDietCoverage.ts).
 
 ## Recipes, ingredients, and catalog supplies
 
@@ -138,7 +138,7 @@ erDiagram
 - Amount sources preserve the explanation of each contribution: recipe sources include recipe name, day number, and portion count; additional supply sources include scaling flags. They do not store references to assignment objects.
 - Missing supply IDs produce placeholder supplies in the shopping list rather than dropping the contribution.
 
-Source: [shoppingList.ts](../src/model/shoppingList.ts), [cruise.ts](../src/model/cruise.ts).
+Use `cruise.supplies` to update or query additional supplies. Use `cruise.shoppingList.aggregate()` to calculate the shopping list from the current meal plan, crew size, and additional supplies. [Additional supplies](../src/model/cruise/supplies.ts), [shopping list](../src/model/cruise/shoppingList.ts).
 
 ## Mapping discussion terms to code
 

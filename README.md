@@ -75,12 +75,21 @@ CyberOchmistrz/
 │   │   └── supplies.json      # ~100 supplies with units, categories, veg flags
 │   ├── model/                 # Domain logic (no UI)
 │   │   ├── AGENTS.md          # Model layer rules for AI agents
-│   │   ├── cruise.ts          # Immutable cruise model and intention-focused operations
-│   │   ├── cruiseData.ts      # Cruise persistence and restoration
+│   │   ├── cruise/            # Immutable cruise aggregate and domain operations
+│   │   │   ├── index.ts       # Public entry point, identity, timestamps, commits
+│   │   │   ├── organization.ts # Name, start date, and duration operations
+│   │   │   ├── crew.ts        # Crew membership, diets, and exclusions
+│   │   │   ├── mealPlan.ts    # Cruise days, recipe assignment snapshots and handles
+│   │   │   ├── supplies.ts    # Additional supply amounts, scaling, and grouping
+│   │   │   ├── shoppingList.ts # Derived shopping list and CSV generation
+│   │   │   ├── restoration.ts # Validation of serialized cruise data
+│   │   │   └── internals.ts   # Shared immutable copying and ID generation
+│   │   ├── cruiseData.ts      # Cruise persistence in browser storage
 │   │   ├── cruiseDietCoverage.ts  # Max-flow diet coverage (Dinic's algorithm), smart crewCount defaults
-│   │   ├── crew.ts            # CrewMember (with excludedSupplies), Diet type, DIET_REGISTRY
+│   │   ├── crew.ts            # Crew member types, diet registry, and draft edits
 │   │   ├── recipieData.ts     # Recipe loading, ingredient resolution, veg checks
 │   │   ├── recipe.ts          # Recipe and ingredient quantity types
+│   │   ├── shoppingList.ts    # Compatibility exports for shopping list helpers
 │   │   ├── supply.ts          # Supply and ingredient types
 │   │   └── supplyData.ts      # Immutable supply catalog, filtering, validation
 │   ├── types/                 # TypeScript interfaces and enums
@@ -149,7 +158,7 @@ npm run test:model -- --engine properties --seconds 60
 npm run test:model -- --engine fuzz --seconds 60
 npm run test:model -- --engine mutation --seconds 120
 npm run test:model -- --seconds 3600               # All three engines, up to one hour EACH
-npm run test:model -- --engine mutation --seconds 120 --mutate src/model/recipieData.ts
+npm run test:model -- --engine mutation --seconds 120 --mutate src/model/cruise/mealPlan.ts
 npm run test:model -- --replay reports/model-testing/<run>/<finding>.json
 npm run test:model:cli                            # Lifecycle, timeout, finding and replay checks
 npm run test:model -- --help
@@ -225,7 +234,7 @@ No state library (Redux, Zustand, etc.). Pattern:
 - **Static data:** JSON catalogs are bundled with the application. Supply APIs share an owned, immutable catalog and read-only views.
 - **Persistent data:** `localStorage` access has an SSR guard (`typeof window === 'undefined'` returns empty). `getCruises()` and `getCruiseById()` restore immutable `Cruise` instances synchronously.
 - **Restoration:** file imports and stored data are parsed as `unknown` and validated by `Cruise.fromData` before use or persistence. Existing cruise IDs and recipe snapshots are preserved; new cruise IDs are UUIDs.
-- **Cruise state:** intention-focused model operations return immutable instances. Assignments own recipe snapshots and expose handles for edits, moves, and removal. The cruise provider publishes changed instances and skips publication when an operation returns the same instance.
+- **Cruise state:** `Cruise` exposes operations through `organization`, `crew`, `mealPlan`, and `supplies`. Changes return a full immutable cruise snapshot and no-op calls return the original instance. Assignments own recipe snapshots and expose handles for edits, moves, and removal. `shoppingList.aggregate()` derives quantities from the current cruise. The cruise provider publishes changed instances and skips publication when an operation returns the same instance.
 - **Component state:** React `useState` + `useEffect` handles local state and hydration.
 
 ---

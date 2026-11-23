@@ -29,27 +29,27 @@ export default function CruiseSuppliesTab() {
 
   // Group shopping list items by category using domain function
   useEffect(() => {
-    const groupedShoppingList = cruise.groupAdditionalSuppliesByCategory();
+    const groupedShoppingList = cruise.supplies.groupByCategory();
     setShoppingListByCategory(groupedShoppingList);
   }, [cruise]);
 
   const handleAddSupply = (supplyId: string) => {
-     setCruise(cruise.addAdditionalSupply({ id: supplyId, amount: 1, isPerDay: false, isPerPerson: false }));
+     setCruise(cruise.supplies.add({ id: supplyId, amount: 1, isPerDay: false, isPerPerson: false }));
   };
 
   const handleUpdateAmount = (supplyId: string, amount: number, isPerPerson: boolean, isPerDay: boolean) => {
     if (amount < 0) return;
-    setCruise(cruise.upsertAdditionalSupply({ id: supplyId, amount, isPerPerson, isPerDay }));
+    setCruise(cruise.supplies.upsert({ id: supplyId, amount, isPerPerson, isPerDay }));
   };
 
   const handleRemoveSupply = (supplyId: string, isPerPerson: boolean, isPerDay: boolean) => {
-    setCruise(cruise.removeAdditionalSupply(supplyId, isPerPerson, isPerDay));
+    setCruise(cruise.supplies.remove(supplyId, isPerPerson, isPerDay));
   };
 
   const handleUpdateFlags = (supplyId: string, oldIsPerPerson: boolean, oldIsPerDay: boolean, newIsPerPerson: boolean, newIsPerDay: boolean) => {
     if (oldIsPerPerson === newIsPerPerson && oldIsPerDay === newIsPerDay) return;
-    if (cruise.hasAdditionalSupply(supplyId, newIsPerPerson, newIsPerDay)) {
-      const existingAmount = cruise.getAdditionalSupplyAmount(supplyId, newIsPerPerson, newIsPerDay);
+    if (cruise.supplies.has(supplyId, newIsPerPerson, newIsPerDay)) {
+      const existingAmount = cruise.supplies.amountFor(supplyId, newIsPerPerson, newIsPerDay);
       if (existingAmount !== null) {
         const confirmed = window.confirm(
           `Zmiana flag spowoduje połączenie z istniejącym wpisem (${existingAmount} ${declineUnit('sztuki', existingAmount)}). Czy chcesz kontynuować?`
@@ -58,11 +58,9 @@ export default function CruiseSuppliesTab() {
       }
     }
 
-    const supply = cruise.additionalSupplies.find(entry =>
-      entry.id === supplyId && entry.isPerPerson === oldIsPerPerson && entry.isPerDay === oldIsPerDay
-    );
+    const supply = cruise.supplies.find(supplyId, oldIsPerPerson, oldIsPerDay);
     if (!supply) return;
-    setCruise(cruise.changeAdditionalSupplyScaling({
+    setCruise(cruise.supplies.changeScaling({
       supply, perPerson: newIsPerPerson, perDay: newIsPerDay,
     }));
   };

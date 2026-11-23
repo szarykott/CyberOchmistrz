@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { CrewMember } from '../model/crew';
-import { Diet, DIET_REGISTRY } from '../model/crew';
+import { addCrewMember, Diet, DIET_REGISTRY, removeCrewMember, updateCrewMember } from '../model/crew';
 import { getIngredients, getSupplyById } from '../model/supplyData';
 
 interface CrewEditorProps {
@@ -25,27 +25,23 @@ export default function CrewEditor({ members, onChange }: CrewEditorProps) {
     });
   };
 
-  const updateMember = (index: number, updater: (m: CrewMember) => CrewMember) => {
-    const next = members.map((m, i) => (i === index ? updater(m) : m));
-    onChange(next);
-  };
-
   const removeMember = (index: number) => {
-    onChange(members.filter((_, i) => i !== index));
+    onChange(removeCrewMember(members, index));
   };
 
   const addMember = () => {
-    const id = `crew-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-    onChange([...members, { id, name: 'Załogant #' + (members.length + 1), diet: 'omnivore' }]);
+    const next = addCrewMember(members);
+    const id = next[next.length - 1].id;
+    onChange(next);
     setExpandedMembers(prev => new Set(prev).add(id));
   };
 
   const handleNameChange = (index: number, name: string) => {
-    updateMember(index, (m) => ({ ...m, name }));
+    onChange(updateCrewMember(members, index, { name }));
   };
 
   const handleDietChange = (index: number, diet: Diet) => {
-    updateMember(index, (m) => ({ ...m, diet }));
+    onChange(updateCrewMember(members, index, { diet }));
   };
 
   const vegCount = members.filter((m) => m.diet === 'vegetarian').length;
@@ -103,7 +99,7 @@ export default function CrewEditor({ members, onChange }: CrewEditorProps) {
                 <MemberExclusionsEditor
                   member={member}
                   onExclusionsChange={(excludedSupplies) =>
-                    updateMember(index, (m) => ({ ...m, excludedSupplies }))
+                    onChange(updateCrewMember(members, index, { excludedSupplies }))
                   }
                 />
                 <div className="flex justify-end mt-1">

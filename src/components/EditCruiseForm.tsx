@@ -16,10 +16,10 @@ export default function EditCruiseForm() {
     crewMembers: CrewMember[];
     startDate: string;
   }>({
-    name: cruise.name,
-    length: cruise.days.length,
-    crewMembers: cruise.crewMembers.slice(),
-    startDate: cruise.startDate || '',
+    name: cruise.organization.name,
+    length: cruise.organization.duration,
+    crewMembers: cruise.crew.members.slice(),
+    startDate: cruise.organization.startDate || '',
   });
   const [errors, setErrors] = useState({
     name: '',
@@ -74,8 +74,8 @@ export default function EditCruiseForm() {
     }
 
     if (
-      formData.length < cruise.days.length &&
-      cruise.willLengthReductionRemoveRecipes(formData.length)
+      formData.length < cruise.organization.duration &&
+      cruise.organization.willLengthReductionRemoveRecipes(formData.length)
     ) {
       const confirmed = confirm(
         'Zmniejszenie długości rejsu spowoduje usunięcie przepisów z usuniętych dni. Czy chcesz kontynuować?',
@@ -85,13 +85,13 @@ export default function EditCruiseForm() {
       }
     }
 
-    const updated = cruise
+    const updated = cruise.organization
       .rename(formData.name)
-      .changeDuration(formData.length)
-      .replaceCrew(formData.crewMembers);
+      .organization.changeDuration(formData.length)
+      .crew.replace(formData.crewMembers);
     setCruise(formData.startDate
-      ? updated.changeStartDate(formData.startDate)
-      : updated.clearStartDate());
+      ? updated.organization.changeStartDate(formData.startDate)
+      : updated.organization.clearStartDate());
 
     router.push(`/rejsy?id=${cruise.id}`);
   };

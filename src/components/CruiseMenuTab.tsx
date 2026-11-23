@@ -53,11 +53,11 @@ export default function CruiseMenuTab() {
   };
 
   useEffect(() => {
-    if (selectedDay === null && cruise.days.length > 0) {
-      const firstDay = cruise.days[0].dayNumber;
+    if (selectedDay === null && cruise.mealPlan.days.length > 0) {
+      const firstDay = cruise.mealPlan.days[0].dayNumber;
       setSelectedDay(firstDay);
     }
-  }, [cruise.days, selectedDay]);
+  }, [cruise.mealPlan.days, selectedDay]);
 
   const handleDaySelect = (dayNumber: number) => {
     setSelectedDay(dayNumber === selectedDay ? null : dayNumber);
@@ -67,7 +67,7 @@ export default function CruiseMenuTab() {
   };
 
   const handleRemoveRecipe = (assignment: RecipeAssignment) => {
-    setCruise(cruise.removeRecipe({ assignment }));
+    setCruise(cruise.mealPlan.removeRecipe({ assignment }));
   };
 
   const handleEditIngredients = (assignment: RecipeAssignment) => {
@@ -75,7 +75,7 @@ export default function CruiseMenuTab() {
   };
 
   const handleCrewCountChange = (assignment: RecipeAssignment, portions: number) => {
-    setCruise(cruise.changePortions({ assignment, portions }));
+    setCruise(cruise.mealPlan.changePortions({ assignment, portions }));
   };
 
   const handleSaveRecipeEdits = (
@@ -83,7 +83,7 @@ export default function CruiseMenuTab() {
     ingredients: Array<{ id: string; amount: number }>,
   ) => {
     if (!editingRecipe) return;
-    setCruise(cruise.editAssignedRecipe({ assignment: editingRecipe, changes: { name, ingredients } }));
+    setCruise(cruise.mealPlan.editAssignedRecipe({ assignment: editingRecipe, changes: { name, ingredients } }));
   };
 
   const closeIngredientEditor = () => {
@@ -150,7 +150,7 @@ export default function CruiseMenuTab() {
       const fullRecipe = getRecipeById(recipeId);
       if (!fullRecipe) return;
 
-      setCruise(cruise.addRecipe({
+      setCruise(cruise.mealPlan.addRecipe({
         day: targetDay, slot: targetSlot, recipe: fullRecipe,
         portions: Math.max(1, cruise.crewMembers.length),
       }));
@@ -178,7 +178,7 @@ export default function CruiseMenuTab() {
       targetMealSlot = overData.mealSlot;
       before = overData.assignment;
       if (activeData.dayNumber === targetDayNumber && sourceMealSlot === targetMealSlot) {
-        const assignments = cruise.getRecipeAssignments({ day: targetDayNumber!, slot: targetMealSlot! });
+        const assignments = cruise.mealPlan.getRecipeAssignments({ day: targetDayNumber!, slot: targetMealSlot! });
         const sourceIndex = assignments.findIndex(item => item.key === assignment.key);
         const targetIndex = assignments.findIndex(item => item.key === before!.key);
         if (sourceIndex >= 0 && sourceIndex < targetIndex) {
@@ -190,13 +190,13 @@ export default function CruiseMenuTab() {
     }
 
     if (targetDayNumber === undefined || !targetMealSlot) return;
-    setCruise(cruise.moveRecipe({
+    setCruise(cruise.mealPlan.moveRecipe({
       assignment, to: { day: targetDayNumber, slot: targetMealSlot }, before,
     }));
   };
 
   const selectedDayData = selectedDay !== null
-    ? cruise.days.find((day) => day.dayNumber === selectedDay)
+    ? cruise.mealPlan.days.find((day) => day.dayNumber === selectedDay)
     : null;
 
   const switchToRecipesView = () => {
@@ -280,7 +280,7 @@ export default function CruiseMenuTab() {
               !!activeId ? 'border-2 border-gray-300 border-dashed dark:border-gray-600 rounded-lg p-2' : ''
             }`}
           >
-            {cruise.days.map((day) => (
+            {cruise.mealPlan.days.map((day) => (
               <DroppableDayItem
                 key={day.dayNumber}
                 dayNumber={day.dayNumber}
@@ -312,7 +312,7 @@ export default function CruiseMenuTab() {
                 <DroppableRecipieContainer
                   dayNumber={selectedDay}
                   recipes={selectedDayData.recipes}
-                  getAssignments={(slot) => cruise.getRecipeAssignments({ day: selectedDay, slot })}
+                  getAssignments={(slot) => cruise.mealPlan.getRecipeAssignments({ day: selectedDay, slot })}
                   crewMembers={cruise.crewMembers}
                   onEditIngredients={handleEditIngredients}
                   onRemoveRecipe={handleRemoveRecipe}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { aggregateShoppingList, generateShoppingListCSV } from '../model/shoppingList';
+import { generateShoppingListCSV } from '../model/shoppingList';
 import { declineUnit } from '../utils/polishDeclension';
 import { AggregatedShoppingList, AggregatedItem, RecipeAmountSource, AdditionalSupplyAmountSource } from '@/model/shoppingList';
 import { useCruise } from '@/app/rejsy/CruiseProvider';
@@ -12,7 +12,7 @@ export default function ShoppingListTab() {
   const { cruise } = useCruise();
 
   useEffect(() => {
-    const groupedItems = aggregateShoppingList(cruise);
+    const groupedItems = cruise.shoppingList.aggregate();
     setAggregatedList(groupedItems);
   }, [cruise]);
 
