@@ -1,9 +1,11 @@
 'use client';
 
+import { supplyCatalog } from '../data/supplyRepository';
+
 import { useState, useEffect } from 'react';
-import { generateShoppingListCSV } from '../model/shoppingList';
+import { generateShoppingListCSV } from '../model/cruise/shoppingList';
 import { declineUnit } from '../utils/polishDeclension';
-import { AggregatedShoppingList, AggregatedItem, RecipeAmountSource, AdditionalSupplyAmountSource } from '@/model/shoppingList';
+import { AggregatedShoppingList, AggregatedItem, RecipeAmountSource, AdditionalSupplyAmountSource } from '@/model/cruise/shoppingList';
 import { useCruise } from '@/app/rejsy/CruiseProvider';
 
 export default function ShoppingListTab() {
@@ -12,7 +14,7 @@ export default function ShoppingListTab() {
   const { cruise } = useCruise();
 
   useEffect(() => {
-    const groupedItems = cruise.shoppingList.aggregate();
+    const groupedItems = cruise.shoppingList.aggregate(supplyCatalog);
     setAggregatedList(groupedItems);
   }, [cruise]);
 
@@ -66,12 +68,12 @@ export default function ShoppingListTab() {
       if (tooltipContent) tooltipContent += '\n';
       tooltipContent += `Z dodatkowych zakupów:\n`;
       additionalSources.forEach(source => {
-        const crewMultiplier = source.isPerPerson ? cruise.crewMembers.length : 1;
-        const dayMultiplier = source.isPerDay ? cruise.days.length : 1;
+        const crewMultiplier = source.isPerPerson ? cruise.crew.members.length : 1;
+        const dayMultiplier = source.isPerDay ? cruise.duration : 1;
         const scaledAmount = source.amount * crewMultiplier * dayMultiplier;
         let calculation = `${source.amount} ${declineUnit(item.supply.unit, source.amount)}`;
-        if (source.isPerPerson) calculation += ` × ${cruise.crewMembers.length} ${declineUnit('załogant', cruise.crewMembers.length)}`;
-        if (source.isPerDay) calculation += ` × ${cruise.days.length} dni`;
+        if (source.isPerPerson) calculation += ` × ${cruise.crew.members.length} ${declineUnit('załogant', cruise.crew.members.length)}`;
+        if (source.isPerDay) calculation += ` × ${cruise.duration} dni`;
         if (source.isPerPerson || source.isPerDay){
           calculation += ` = ${scaledAmount} ${declineUnit(item.supply.unit, scaledAmount)}`;
         }

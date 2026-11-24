@@ -1,6 +1,6 @@
 "use client";
 
-import { isRecipieVegetarian, isRecipieVegan } from '@/model/recipieData';
+import { supplyCatalog } from '@/data/supplyRepository';
 import { recipieRepository } from '@/data/recipieRepository';
 import { useState } from 'react';
 import { useDraggable } from '@dnd-kit/core';
@@ -106,9 +106,9 @@ export default function RecipeList({ onSelectRecipie, selectedRecipieId, isDragg
 
     // Apply dietary filter
     if (diet === 'vegetarian') {
-      filtered = filtered.filter(recipie => isRecipieVegetarian(recipie) || isRecipieVegan(recipie));
+      filtered = filtered.filter(recipie => recipie.matchesDiet('vegetarian', supplyCatalog.getIngredientById) || recipie.matchesDiet('vegan', supplyCatalog.getIngredientById));
     } else if (diet === 'vegan') {
-      filtered = filtered.filter(recipie => isRecipieVegan(recipie));
+      filtered = filtered.filter(recipie => recipie.matchesDiet('vegan', supplyCatalog.getIngredientById));
     }
 
     setFilteredRecipies(filtered);
@@ -191,8 +191,8 @@ export default function RecipeList({ onSelectRecipie, selectedRecipieId, isDragg
         ) : (
           <ul className="space-y-2">
             {filteredRecipies.map(recipie => {
-              const isVegetarian = isRecipieVegetarian(recipie);
-              const isVegan = isRecipieVegan(recipie);
+              const isVegetarian = recipie.matchesDiet('vegetarian', supplyCatalog.getIngredientById);
+              const isVegan = recipie.matchesDiet('vegan', supplyCatalog.getIngredientById);
 
               return (
                 <RecipeListItem

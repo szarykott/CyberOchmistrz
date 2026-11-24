@@ -1,8 +1,8 @@
-import { CrewMember, Diet } from "./crew";
-import { isRecipieVegan, isRecipieVegetarian } from "./recipieData";
-import { CrewRecipeAllocationChecker } from "../utils/maxFlow";
-import { Cruise, CruiseDayRecipe } from "./cruise";
-import { MealType, Recipie } from "./recipe";
+import type { SupplyCatalog } from "../../supply";
+import type { CrewMember, Diet } from "../../crew";
+import { CrewRecipeAllocationChecker } from "./maxFlow";
+import type { Cruise, CruiseDayRecipe } from "..";
+import { MealType, type Recipie } from "../../recipe";
 
 // ---------------------------------------------------------------------------
 // Report types
@@ -28,11 +28,11 @@ export interface MealCoverage {
 // Coverage computation
 // ---------------------------------------------------------------------------
 
-export function getCruiseCoverage(cruise: Cruise): DayCoverageReport[] {
-  if (cruise.crewMembers.length === 0) return [];
+export function getCruiseCoverage(cruise: Cruise, supplyCatalog: SupplyCatalog): DayCoverageReport[] {
+  if (cruise.crew.members.length === 0) return [];
 
-  return cruise.days.map((day) =>
-    getDayCoverage(day.dayNumber, day.recipes, cruise.crewMembers),
+  return cruise.mealPlan.days.map((day) =>
+    getDayCoverage(day.dayNumber, day.recipes, cruise.crew.members, supplyCatalog),
   );
 }
 
@@ -40,6 +40,7 @@ export function getDayCoverage(
   dayNumber: number,
   recipes: readonly CruiseDayRecipe[],
   members: readonly CrewMember[],
+  supplyCatalog: SupplyCatalog,
 ): DayCoverageReport {
   // Group non-snack recipes by mealSlot
   const bySlot = new Map<MealType, CruiseDayRecipe[]>();
@@ -52,7 +53,7 @@ export function getDayCoverage(
 
   const meals: MealCoverage[] = [];
   for (const [slot, slotRecipes] of bySlot) {
-    meals.push(getMealCoverage(slotRecipes, members, slot));
+    meals.push(getMealCoverage(slotRecipes, members, slot, supplyCatalog));
   }
 
   const NON_SNACK_MEALS = [
@@ -79,6 +80,7 @@ export function getMealCoverage(
   slotRecipes: readonly CruiseDayRecipe[],
   members: readonly CrewMember[],
   mealSlot: MealType,
+  supplyCatalog: SupplyCatalog,
 ): MealCoverage {
   const totalNeeded = members.length;
   const totalPortions = slotRecipes.reduce((s, r) => s + r.crewCount, 0);
@@ -87,9 +89,9 @@ export function getMealCoverage(
     return defaultMealCoverage(mealSlot, totalPortions);
   }
 
-  const allocationChecker = new CrewRecipeAllocationChecker(members, slotRecipes, (member, recipe) => {
-    return canEat(member, recipe.recipeData);
-  });
+  const allocationChecker = new CrewRecipeAllocationChecker(members, slotRecipes, (member, recipe) =>
+    canEat(member, recipe.recipe, supplyCatalog)
+  );
 
   const unfed = allocationChecker.getUnfedCrewMembers();
 
@@ -98,26 +100,15 @@ export function getMealCoverage(
     totalPortions,
     totalNeeded,
     unfed,
-    forbiddenIngredientCounts: getForbiddenIngredientCounts(unfed, slotRecipes.map(r => r.recipeData)),
+    forbiddenIngredientCounts: getForbiddenIngredientCounts(unfed, slotRecipes.map(r => r.recipe)),
     surplus: Math.max(0, totalPortions - totalNeeded),
   };
 }
 
-export function canEat(member: CrewMember, recipe: Recipie): boolean {
-  return dietMatches(member, recipe)
-    && !hasExcludedIngredients(member, recipe);
-}
-
-function dietMatches(member: CrewMember, recipe: Recipie): boolean {
-  switch (member.diet) {
-    case "omnivore":   return true;
-    case "vegetarian": return isRecipieVegetarian(recipe);
-    case "vegan":      return isRecipieVegan(recipe);
-  }
-}
-
-function hasExcludedIngredients(member: CrewMember, recipe: Recipie): boolean {
-  return recipe.ingredients.some(ing => member.excludedSupplies?.includes(ing.id));
+export function canEat(member: CrewMember, recipe: Recipie, supplyCatalog: SupplyCatalog): boolean {
+  return (member.diet === "omnivore" ||
+    recipe.matchesDiet(member.diet, supplyCatalog.getIngredientById)) &&
+    !recipe.ingredients.some(ing => member.excludedSupplies?.includes(ing.id));
 }
 
 // ---------------------------------------------------------------------------
@@ -152,12 +143,12 @@ function getForbiddenIngredientCounts(
 }
 
 export function countCrewWithTag(cruise: Cruise, tag: string): number {
-  return cruise.crewMembers.filter((m) => m.diet === tag).length;
+  return cruise.crew.members.filter((m) => m.diet === tag).length;
 }
 
 export function getActiveDietTags(cruise: Cruise): Diet[] {
   const present = new Set<Diet>();
-  cruise.crewMembers.forEach((m) => present.add(m.diet));
+  cruise.crew.members.forEach((m) => present.add(m.diet));
   const DIET_VALUES: Diet[] = ["omnivore", "vegetarian", "vegan"];
   return DIET_VALUES.filter((t) => present.has(t));
 }

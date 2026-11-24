@@ -1,10 +1,10 @@
+import { restoreCruise } from '../src/data/cruiseRepository';
 import { CruiseDayRecipe, Cruise } from '../src/model/cruise';
-import { Recipie, MealType } from '../src/model/recipe';
+import { Recipie, RecipieData, MealType } from '../src/model/recipe';
 import { Diet, CrewMember } from '../src/model/crew';
-import { createRecipie } from '../src/model/recipieData';
 
-const makeRecipe = (id: string): Recipie =>
-  createRecipie({
+const makeRecipe = (id: string): RecipieData =>
+  ({
     id,
     name: id,
     description: 'desc',
@@ -18,7 +18,7 @@ const makeMember = (id: string): CrewMember => ({ id, name: `Member ${id}`, diet
 
 const makeRecipeEntry = (id: string, crewCount: number, mealSlot: MealType): CruiseDayRecipe => ({
   originalRecipeId: id,
-  recipeData: makeRecipe(id),
+  recipe: Recipie.fromData(makeRecipe(id)),
   crewCount,
   mealSlot,
 });
@@ -43,57 +43,57 @@ describe('Cruise JSON round-trip (rehydration)', () => {
   let roundTripped: Cruise;
 
   beforeAll(() => {
-    roundTripped = JSON.parse(JSON.stringify(originalCruise));
+    roundTripped = restoreCruise(JSON.parse(JSON.stringify(originalCruise)));
   });
 
   it('should preserve crewMembers array length', () => {
-    expect(roundTripped.crewMembers).toHaveLength(originalCruise.crewMembers.length);
+    expect(roundTripped.crew.members).toHaveLength(originalCruise.crew.members.length);
   });
 
   it('should preserve crewMember id, name, and diet on each member', () => {
-    roundTripped.crewMembers.forEach((m, i) => {
-      expect(m.id).toBe(originalCruise.crewMembers[i].id);
-      expect(m.name).toBe(originalCruise.crewMembers[i].name);
-      expect(m.diet).toBe(originalCruise.crewMembers[i].diet);
+    roundTripped.crew.members.forEach((m, i) => {
+      expect(m.id).toBe(originalCruise.crew.members[i].id);
+      expect(m.name).toBe(originalCruise.crew.members[i].name);
+      expect(m.diet).toBe(originalCruise.crew.members[i].diet);
     });
   });
 
   it('crewMembers.length after round-trip equals original crew count (guards against scalar regression)', () => {
-    expect(roundTripped.crewMembers.length).toBe(3);
-    expect((roundTripped as unknown as Record<string, unknown>)['crew']).toBeUndefined();
+    expect(roundTripped.crew.members.length).toBe(3);
+    expect(roundTripped.toJSON()).not.toHaveProperty('crew');
   });
 
   it('should preserve days[].recipes[].crewCount', () => {
-    expect(roundTripped.days[0].recipes[0].crewCount).toBe(3);
-    expect(roundTripped.days[0].recipes[1].crewCount).toBe(3);
-    expect(roundTripped.days[1].recipes[0].crewCount).toBe(2);
+    expect(roundTripped.mealPlan.days[0].recipes[0].crewCount).toBe(3);
+    expect(roundTripped.mealPlan.days[0].recipes[1].crewCount).toBe(3);
+    expect(roundTripped.mealPlan.days[1].recipes[0].crewCount).toBe(2);
   });
 
   it('should preserve days[].recipes[].mealSlot', () => {
-    expect(roundTripped.days[0].recipes[0].mealSlot).toBe(MealType.BREAKFAST);
-    expect(roundTripped.days[0].recipes[1].mealSlot).toBe(MealType.DINNER);
+    expect(roundTripped.mealPlan.days[0].recipes[0].mealSlot).toBe(MealType.BREAKFAST);
+    expect(roundTripped.mealPlan.days[0].recipes[1].mealSlot).toBe(MealType.DINNER);
   });
 
   it('should preserve days[].recipes[].recipeData as required field', () => {
-    const r = roundTripped.days[0].recipes[0];
+    const r = roundTripped.toJSON().days[0].recipes[0];
     expect(r.recipeData).toBeDefined();
     expect(r.recipeData.id).toBe('jajecznica');
     expect(r.recipeData.ingredients).toEqual([{ id: 'jajka', amount: 3 }]);
   });
 
   it('should preserve originalRecipeId', () => {
-    expect(roundTripped.days[0].recipes[0].originalRecipeId).toBe('jajecznica');
-    expect(roundTripped.days[1].recipes[0].originalRecipeId).toBe('pesto');
+    expect(roundTripped.mealPlan.days[0].recipes[0].originalRecipeId).toBe('jajecznica');
+    expect(roundTripped.mealPlan.days[1].recipes[0].originalRecipeId).toBe('pesto');
   });
 
   it('should preserve top-level cruise fields', () => {
     expect(roundTripped.id).toBe(originalCruise.id);
     expect(roundTripped.name).toBe(originalCruise.name);
-    expect(roundTripped.days.length).toBe(originalCruise.days.length);
+    expect(roundTripped.mealPlan.days.length).toBe(originalCruise.mealPlan.days.length);
     expect(roundTripped.startDate).toBe(originalCruise.startDate);
   });
 
   it('should preserve additionalSupplies', () => {
-    expect(roundTripped.additionalSupplies).toEqual(originalCruise.additionalSupplies);
+    expect(roundTripped.supplies.entries).toEqual(originalCruise.supplies.entries);
   });
 });

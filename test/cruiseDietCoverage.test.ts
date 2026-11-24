@@ -1,11 +1,10 @@
-import { getMealCoverage, getDayCoverage, getCruiseCoverage, countCrewWithTag, getActiveDietTags, canEat } from '../src/model/cruiseDietCoverage';
-import { createRecipie } from '../src/model/recipieData';
+import { SupplyCatalog } from '../src/model/supply';
+import { getMealCoverage, getDayCoverage, getCruiseCoverage, countCrewWithTag, getActiveDietTags, canEat } from '../src/model/cruise/mealPlan/cruiseDietCoverage';
 import { Diet, CrewMember, DIET_REGISTRY } from '../src/model/crew';
 import { CruiseDayRecipe, Cruise } from '../src/model/cruise';
-import { MealType, Recipie } from '../src/model/recipe';
+import { MealType, Recipie, RecipieData } from '../src/model/recipe';
 
-// Mock supplies so isRecipieVegan/isRecipieVegetarian work deterministically
-jest.mock('../src/data/supplies.json', () => [
+const supplyCatalog = new SupplyCatalog([
   { id: 'tofu', name: 'Tofu', unit: 'g', isIngredient: true, category: 'inne', isVegetarian: true, isVegan: true },
   { id: 'pasta', name: 'Pasta', unit: 'g', isIngredient: true, category: 'zboża', isVegetarian: true, isVegan: true },
   { id: 'cheese', name: 'Ser', unit: 'g', isIngredient: true, category: 'nabiał', isVegetarian: true, isVegan: false },
@@ -22,8 +21,8 @@ const omni = (id: string) => member(id, 'omnivore');
 const veg = (id: string) => member(id, 'vegetarian');
 const vegan = (id: string) => member(id, 'vegan');
 
-const recipe = (id: string, ingredientIds: string[], mealSlot: MealType = MealType.DINNER): Recipie =>
-  createRecipie({
+const recipe = (id: string, ingredientIds: string[], mealSlot: MealType = MealType.DINNER): RecipieData =>
+  ({
     id,
     name: id,
     description: '',
@@ -33,9 +32,9 @@ const recipe = (id: string, ingredientIds: string[], mealSlot: MealType = MealTy
     ingredients: ingredientIds.map(iid => ({ id: iid, amount: 1 })),
   });
 
-const slot = (r: Recipie, crewCount: number, mealSlot: MealType = MealType.DINNER): CruiseDayRecipe => ({
+const slot = (r: RecipieData, crewCount: number, mealSlot: MealType = MealType.DINNER): CruiseDayRecipe => ({
   originalRecipeId: r.id,
-  recipeData: r,
+  recipe: Recipie.fromData(r),
   crewCount,
   mealSlot,
 });
@@ -63,40 +62,40 @@ const eggs = recipe('eggs-omni', ['egg', 'meat']);              // omnivore
 describe('canEat', () => {
   it('should not allocate a recipe with an unknown ingredient to restricted diets', () => {
     const mixed = recipe('mixed', ['tofu', 'missing']);
-    expect(canEat(omni('1'), mixed)).toBe(true);
-    expect(canEat(veg('1'), mixed)).toBe(false);
-    expect(canEat(vegan('1'), mixed)).toBe(false);
-    expect(getMealCoverage([slot(mixed, 1)], [vegan('1')], MealType.DINNER).unfed).toHaveLength(1);
+    expect(canEat(omni('1'), Recipie.fromData(mixed), supplyCatalog)).toBe(true);
+    expect(canEat(veg('1'), Recipie.fromData(mixed), supplyCatalog)).toBe(false);
+    expect(canEat(vegan('1'), Recipie.fromData(mixed), supplyCatalog)).toBe(false);
+    expect(getMealCoverage([slot(mixed, 1)], [vegan('1')], MealType.DINNER, supplyCatalog).unfed).toHaveLength(1);
     expect(mixed.ingredients.map(item => item.id)).toEqual(['tofu', 'missing']);
   });
   it('omnivore eats any recipe', () => {
-    expect(canEat(omni('1'), spaghetti)).toBe(true);
-    expect(canEat(omni('1'), tofu)).toBe(true);
-    expect(canEat(omni('1'), pasta)).toBe(true);
+    expect(canEat(omni('1'), Recipie.fromData(spaghetti), supplyCatalog)).toBe(true);
+    expect(canEat(omni('1'), Recipie.fromData(tofu), supplyCatalog)).toBe(true);
+    expect(canEat(omni('1'), Recipie.fromData(pasta), supplyCatalog)).toBe(true);
   });
 
   it('vegetarian blocked by meat recipe', () => {
-    expect(canEat(veg('1'), spaghetti)).toBe(false); // has meat
-    expect(canEat(veg('1'), pasta)).toBe(true);      // dairy OK for vegetarian
-    expect(canEat(veg('1'), tofu)).toBe(true);
+    expect(canEat(veg('1'), Recipie.fromData(spaghetti), supplyCatalog)).toBe(false); // has meat
+    expect(canEat(veg('1'), Recipie.fromData(pasta), supplyCatalog)).toBe(true);      // dairy OK for vegetarian
+    expect(canEat(veg('1'), Recipie.fromData(tofu), supplyCatalog)).toBe(true);
   });
 
   it('vegan blocked by dairy recipe', () => {
-    expect(canEat(vegan('1'), pasta)).toBe(false);   // has cheese (dairy, not vegan)
-    expect(canEat(vegan('1'), tofu)).toBe(true);
-    expect(canEat(vegan('1'), spaghetti)).toBe(false); // has meat
+    expect(canEat(vegan('1'), Recipie.fromData(pasta), supplyCatalog)).toBe(false);   // has cheese (dairy, not vegan)
+    expect(canEat(vegan('1'), Recipie.fromData(tofu), supplyCatalog)).toBe(true);
+    expect(canEat(vegan('1'), Recipie.fromData(spaghetti), supplyCatalog)).toBe(false); // has meat
   });
 
   it('omnivore blocked by excluded ingredient', () => {
     const m = { ...omni('1'), excludedSupplies: ['meat'] };
-    expect(canEat(m, spaghetti)).toBe(false); // spaghetti has meat
-    expect(canEat(m, pasta)).toBe(true);      // pasta has no meat
+    expect(canEat(m, Recipie.fromData(spaghetti), supplyCatalog)).toBe(false); // spaghetti has meat
+    expect(canEat(m, Recipie.fromData(pasta), supplyCatalog)).toBe(true);      // pasta has no meat
   });
 
   it('omnivore not blocked when excluded ingredient absent from recipe', () => {
     const m = { ...omni('1'), excludedSupplies: ['cheese'] };
-    expect(canEat(m, spaghetti)).toBe(true);  // spaghetti has no cheese
-    expect(canEat(m, tofu)).toBe(true);       // tofu has no cheese
+    expect(canEat(m, Recipie.fromData(spaghetti), supplyCatalog)).toBe(true);  // spaghetti has no cheese
+    expect(canEat(m, Recipie.fromData(tofu), supplyCatalog)).toBe(true);       // tofu has no cheese
   });
 });
 
@@ -108,7 +107,7 @@ describe('getMealCoverage', () => {
   describe('basic coverage scenarios', () => {
     it('should cover 5 omni with spaghetti ×5', () => {
       const crew = [omni('1'), omni('2'), omni('3'), omni('4'), omni('5')];
-      const result = getMealCoverage([slot(spaghetti, 5)], crew, MealType.DINNER);
+      const result = getMealCoverage([slot(spaghetti, 5)], crew, MealType.DINNER, supplyCatalog);
       expect(result.unfed).toHaveLength(0);
       expect(result.surplus).toBe(0);
     });
@@ -118,7 +117,7 @@ describe('getMealCoverage', () => {
       const result = getMealCoverage(
         [slot(spaghetti, 5), slot(tofu, 1)],
         crew,
-        MealType.DINNER
+        MealType.DINNER, supplyCatalog
       );
       expect(result.unfed).toHaveLength(0);
       expect(result.surplus).toBe(0);
@@ -126,7 +125,7 @@ describe('getMealCoverage', () => {
 
     it('should report missing vegan ×1 when only spaghetti ×6 given to 5 omni + 1 vegan', () => {
       const crew = [omni('1'), omni('2'), omni('3'), omni('4'), omni('5'), vegan('6')];
-      const result = getMealCoverage([slot(spaghetti, 6)], crew, MealType.DINNER);
+      const result = getMealCoverage([slot(spaghetti, 6)], crew, MealType.DINNER, supplyCatalog);
       expect(result.unfed).toHaveLength(1);
       expect(result.unfed[0].id).toBe('6');
       expect(result.forbiddenIngredientCounts).toEqual({});
@@ -134,7 +133,7 @@ describe('getMealCoverage', () => {
 
     it('should cover 5 omni + 1 vegan with tofu ×6 (vegan recipe feeds omnis)', () => {
       const crew = [omni('1'), omni('2'), omni('3'), omni('4'), omni('5'), vegan('6')];
-      const result = getMealCoverage([slot(tofu, 6)], crew, MealType.DINNER);
+      const result = getMealCoverage([slot(tofu, 6)], crew, MealType.DINNER, supplyCatalog);
       expect(result.unfed).toHaveLength(0);
       expect(result.surplus).toBe(0);
     });
@@ -148,7 +147,7 @@ describe('getMealCoverage', () => {
       const result = getMealCoverage(
         [slot(stirFry, 1), slot(pasta, 2), slot(spaghetti, 5)],
         crew,
-        MealType.DINNER
+        MealType.DINNER, supplyCatalog
       );
       expect(result.unfed).toHaveLength(0);
     });
@@ -162,7 +161,7 @@ describe('getMealCoverage', () => {
       const result = getMealCoverage(
         [slot(stirFry, 1), slot(pasta, 1), slot(spaghetti, 6)],
         crew,
-        MealType.DINNER
+        MealType.DINNER, supplyCatalog
       );
       // stir-fry (vegan, 1 portion) will be taken by vegan; pasta only 1 portion for 2 vegetarians
       expect(result.unfed).toHaveLength(1);
@@ -172,7 +171,7 @@ describe('getMealCoverage', () => {
   describe('surplus detection', () => {
     it('should report surplus 2 for 3 omni with soup ×5', () => {
       const crew = [omni('1'), omni('2'), omni('3')];
-      const result = getMealCoverage([slot(spaghetti, 5)], crew, MealType.DINNER);
+      const result = getMealCoverage([slot(spaghetti, 5)], crew, MealType.DINNER, supplyCatalog);
       expect(result.unfed).toHaveLength(0);
       expect(result.surplus).toBe(2);
     });
@@ -186,7 +185,7 @@ describe('getMealCoverage', () => {
       const result = getMealCoverage(
         [slot(tofuA, 2), slot(tofuB, 1)],
         crew,
-        MealType.DINNER
+        MealType.DINNER, supplyCatalog
       );
       expect(result.unfed).toHaveLength(0);
     });
@@ -194,7 +193,7 @@ describe('getMealCoverage', () => {
 
   describe('empty crew', () => {
     it('should return empty report for 0 crew members', () => {
-      const result = getMealCoverage([slot(spaghetti, 5)], [], MealType.DINNER);
+      const result = getMealCoverage([slot(spaghetti, 5)], [], MealType.DINNER, supplyCatalog);
       expect(result.unfed).toHaveLength(0);
       expect(result.totalNeeded).toBe(0);
       expect(result.mealType).toBe(MealType.DINNER);
@@ -211,11 +210,11 @@ describe('getMealCoverage', () => {
       const crew = [omni('1'), omni('2'), omni('3'), vegan('4'), vegan('5')];
       const result = getMealCoverage(
         [
-          { originalRecipeId: 'bolognese', recipeData: bolognese, crewCount: 3, mealSlot: MealType.DINNER },
-          { originalRecipeId: 'bolognese', recipeData: bologneseTofu, crewCount: 2, mealSlot: MealType.DINNER },
+          { originalRecipeId: 'bolognese', recipe: Recipie.fromData(bolognese), crewCount: 3, mealSlot: MealType.DINNER },
+          { originalRecipeId: 'bolognese', recipe: Recipie.fromData(bologneseTofu), crewCount: 2, mealSlot: MealType.DINNER },
         ],
         crew,
-        MealType.DINNER
+        MealType.DINNER, supplyCatalog
       );
       expect(result.unfed).toHaveLength(0);
       expect(result.surplus).toBe(0);
@@ -226,7 +225,7 @@ describe('getMealCoverage', () => {
     it('should cover 1 vegan with modified-bolognese (meat→tofu) ×2', () => {
       const veganBolognese = recipe('bolognese-vegan', ['tofu']);
       const crew = [vegan('1')];
-      const result = getMealCoverage([slot(veganBolognese, 2)], crew, MealType.DINNER);
+      const result = getMealCoverage([slot(veganBolognese, 2)], crew, MealType.DINNER, supplyCatalog);
       expect(result.unfed).toHaveLength(0);
       expect(result.surplus).toBe(1);
     });
@@ -239,7 +238,7 @@ describe('getMealCoverage', () => {
         { ...omni('2'), excludedSupplies: ['meat'] },
         omni('3'),
       ];
-      const result = getMealCoverage([slot(spaghetti, 3)], crew, MealType.DINNER);
+      const result = getMealCoverage([slot(spaghetti, 3)], crew, MealType.DINNER, supplyCatalog);
       expect(result.unfed).toEqual([crew[0], crew[1]]);
       expect(result.forbiddenIngredientCounts).toEqual({ meat: 2 });
     });
@@ -247,7 +246,7 @@ describe('getMealCoverage', () => {
     it('member with exclusion blocked by matching ingredient', () => {
       // omni normally eats spaghetti, but excludes meat → blocked
       const m = { ...omni('1'), excludedSupplies: ['meat'] };
-      const result = getMealCoverage([slot(spaghetti, 1)], [m], MealType.DINNER);
+      const result = getMealCoverage([slot(spaghetti, 1)], [m], MealType.DINNER, supplyCatalog);
       expect(result.unfed).toHaveLength(1);
       // meat appears in slot recipe and is excluded by the unfed member
       expect(result.forbiddenIngredientCounts['meat']).toBe(1); // 1 unfed member excludes meat
@@ -255,7 +254,7 @@ describe('getMealCoverage', () => {
 
     it('member not blocked when excluded ingredient absent from recipe', () => {
       const m = { ...omni('1'), excludedSupplies: ['cheese'] };
-      const result = getMealCoverage([slot(spaghetti, 1)], [m], MealType.DINNER);
+      const result = getMealCoverage([slot(spaghetti, 1)], [m], MealType.DINNER, supplyCatalog);
       expect(result.unfed).toHaveLength(0);
       expect(result.forbiddenIngredientCounts).toEqual({});
     });
@@ -263,7 +262,7 @@ describe('getMealCoverage', () => {
     it('member blocked by both diet and exclusion counted in forbiddenIngredientCounts', () => {
       // vegan excludes pasta; spaghetti has meat (diet block) and pasta (exclusion)
       const m = { ...vegan('1'), excludedSupplies: ['pasta'] };
-      const result = getMealCoverage([slot(spaghetti, 1)], [m], MealType.DINNER);
+      const result = getMealCoverage([slot(spaghetti, 1)], [m], MealType.DINNER, supplyCatalog);
       expect(result.unfed).toHaveLength(1);
       // pasta is in the recipe and excluded by unfed member
       expect(result.forbiddenIngredientCounts['pasta']).toBe(1); // 1 unfed member excludes pasta
@@ -273,20 +272,20 @@ describe('getMealCoverage', () => {
   describe('edge cases', () => {
     it('should report all members unfed when no recipes given', () => {
       const crew = [omni('1'), vegan('2')];
-      const result = getMealCoverage([], crew, MealType.DINNER);
+      const result = getMealCoverage([], crew, MealType.DINNER, supplyCatalog);
       expect(result.unfed).toHaveLength(2);
       expect(result.totalPortions).toBe(0);
       expect(result.surplus).toBe(0);
     });
 
     it('should leave member unfed when recipe has crewCount 0', () => {
-      const result = getMealCoverage([slot(spaghetti, 0)], [omni('1')], MealType.DINNER);
+      const result = getMealCoverage([slot(spaghetti, 0)], [omni('1')], MealType.DINNER, supplyCatalog);
       expect(result.unfed).toHaveLength(1);
     });
 
     it('should report surplus and unfed simultaneously when diet mismatch', () => {
       // 5 meat portions for 1 vegan → surplus 4 (max(0, 5-1)), vegan unfed
-      const result = getMealCoverage([slot(spaghetti, 5)], [vegan('1')], MealType.DINNER);
+      const result = getMealCoverage([slot(spaghetti, 5)], [vegan('1')], MealType.DINNER, supplyCatalog);
       expect(result.surplus).toBe(4);
       expect(result.unfed).toHaveLength(1);
     });
@@ -295,7 +294,7 @@ describe('getMealCoverage', () => {
       const result = getMealCoverage(
         [slot(spaghetti, 2), slot(eggs, 2)],
         [vegan('1'), vegan('2')],
-        MealType.DINNER
+        MealType.DINNER, supplyCatalog
       );
       expect(result.unfed).toHaveLength(2);
       expect(result.forbiddenIngredientCounts).toEqual({});
@@ -312,24 +311,24 @@ describe('getDayCoverage', () => {
     const cookie = recipe('cookie', ['tofu']);
     const snackEntry: CruiseDayRecipe = {
       originalRecipeId: 'cookie',
-      recipeData: cookie,
+      recipe: Recipie.fromData(cookie),
       crewCount: 5,
       mealSlot: MealType.SNACK,
     };
     const crew = [omni('1')];
-    const report = getDayCoverage(1, [snackEntry], crew);
+    const report = getDayCoverage(1, [snackEntry], crew, supplyCatalog);
     expect(report.meals).toHaveLength(0);
   });
 
   it('should count recipe toward only its assigned mealSlot', () => {
     const eggsBreakfast: CruiseDayRecipe = {
       originalRecipeId: 'eggs',
-      recipeData: eggs,
+      recipe: Recipie.fromData(eggs),
       crewCount: 2,
       mealSlot: MealType.BREAKFAST,
     };
     const crew = [omni('1'), omni('2')];
-    const report = getDayCoverage(1, [eggsBreakfast], crew);
+    const report = getDayCoverage(1, [eggsBreakfast], crew, supplyCatalog);
     const breakfastMeal = report.meals.find(m => m.mealType === MealType.BREAKFAST);
     const dinnerMeal = report.meals.find(m => m.mealType === MealType.DINNER);
     expect(breakfastMeal?.unfed).toHaveLength(0);
@@ -338,24 +337,24 @@ describe('getDayCoverage', () => {
 
   it('should set isFullyCovered false when any meal has unfed members', () => {
     const crew = [omni('1'), vegan('2')];
-    const report = getDayCoverage(1, [slot(spaghetti, 2)], crew);
+    const report = getDayCoverage(1, [slot(spaghetti, 2)], crew, supplyCatalog);
     expect(report.isFullyCovered).toBe(false);
   });
 
   it('should set hasSurplus true when any meal has surplus', () => {
     const crew = [omni('1')];
-    const report = getDayCoverage(1, [slot(spaghetti, 3)], crew);
+    const report = getDayCoverage(1, [slot(spaghetti, 3)], crew, supplyCatalog);
     expect(report.hasSurplus).toBe(true);
   });
 
   it('should not be fully covered when crew present but no recipes', () => {
-    const report = getDayCoverage(1, [], [omni('1')]);
+    const report = getDayCoverage(1, [], [omni('1')], supplyCatalog);
     expect(report.isFullyCovered).toBe(false);
     expect(report.hasSurplus).toBe(false);
   });
 
   it('should be fully covered when both crew and recipes empty', () => {
-    const report = getDayCoverage(1, [], []);
+    const report = getDayCoverage(1, [], [], supplyCatalog);
     expect(report.meals).toHaveLength(0);
     expect(report.isFullyCovered).toBe(true);
   });
@@ -364,7 +363,7 @@ describe('getDayCoverage', () => {
     const breakfastSlot = slot(eggs, 2, MealType.BREAKFAST);
     const dinnerSlot = slot(spaghetti, 2, MealType.DINNER);
     const crew = [omni('1'), omni('2')];
-    const report = getDayCoverage(1, [breakfastSlot, dinnerSlot], crew);
+    const report = getDayCoverage(1, [breakfastSlot, dinnerSlot], crew, supplyCatalog);
     expect(report.meals).toHaveLength(2);
     expect(report.meals.find(m => m.mealType === MealType.BREAKFAST)?.unfed).toHaveLength(0);
     expect(report.meals.find(m => m.mealType === MealType.DINNER)?.unfed).toHaveLength(0);
@@ -376,7 +375,7 @@ describe('getDayCoverage', () => {
       slot(spaghetti, 2, MealType.BREAKFAST),
       slot(spaghetti, 2, MealType.DINNER),
       slot(spaghetti, 2, MealType.SUPPER),
-    ], crew);
+    ], crew, supplyCatalog);
     expect(report.isFullyCovered).toBe(true);
     expect(report.hasSurplus).toBe(false);
   });
@@ -387,7 +386,7 @@ describe('getDayCoverage', () => {
     const report = getDayCoverage(1, [
       slot(spaghetti, 2, MealType.BREAKFAST),
       slot(spaghetti, 2, MealType.DINNER),
-    ], crew);
+    ], crew, supplyCatalog);
     expect(report.isFullyCovered).toBe(false);
   });
 
@@ -397,7 +396,7 @@ describe('getDayCoverage', () => {
       slot(spaghetti, 2, MealType.BREAKFAST),
       slot(spaghetti, 2, MealType.DINNER),
       slot(spaghetti, 2, MealType.SUPPER),
-    ], crew);
+    ], crew, supplyCatalog);
     expect(report.isFullyCovered).toBe(true);
   });
 
@@ -407,7 +406,7 @@ describe('getDayCoverage', () => {
       slot(eggs, 3, MealType.BREAKFAST), slot(tofu, 1, MealType.BREAKFAST), // 3 omni + 1 vegan = exact
       slot(spaghetti, 4, MealType.DINNER),                                  // vegan can't eat meat → 1 unfed
       slot(tofu, 6, MealType.SUPPER),                                       // vegan feeds all, 6 - 4 = 2 surplus
-    ], crew);
+    ], crew, supplyCatalog);
 
     expect(report.meals).toHaveLength(3);
 
@@ -436,7 +435,7 @@ describe('getDayCoverage', () => {
 describe('getCruiseCoverage', () => {
   it('should return empty array for cruise with 0 crew members', () => {
     const cruise = makeCruise([]);
-    expect(getCruiseCoverage(cruise)).toEqual([]);
+    expect(getCruiseCoverage(cruise, supplyCatalog)).toEqual([]);
   });
 
   it('should return one report per day with correct coverage per day', () => {
@@ -463,7 +462,7 @@ describe('getCruiseCoverage', () => {
         },
       ]);
 
-    const reports = getCruiseCoverage(cruise);
+    const reports = getCruiseCoverage(cruise, supplyCatalog);
     expect(reports).toHaveLength(3);
 
     // Day 1: fully covered, no surplus

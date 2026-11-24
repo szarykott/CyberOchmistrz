@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useMemo } from 'react';
-import { supplyRepository } from '@/data/supplyRepository';
-import { Ingredient, Supply } from '@/model/supply';
+import { supplyCatalog } from '@/data/supplyRepository';
+import { isIngredient, Supply } from '@/model/supply';
 
 export default function SuppliesPage() {
   const [searchText, setSearchText] = useState<string>('');
@@ -12,13 +12,13 @@ export default function SuppliesPage() {
 
   // Get unique categories from supplies data
   const categories = useMemo(() => {
-    const uniqueCategories = Array.from(new Set(supplyRepository.getAll().map((supply: Supply) => supply.category)));
+    const uniqueCategories = Array.from(new Set(supplyCatalog.all.map((supply: Supply) => supply.category)));
     return uniqueCategories.sort();
   }, []);
 
   // Filter supplies based on current filters
   const filteredSupplies = useMemo(() => {
-    return supplyRepository.getAll()
+    return supplyCatalog.all
       .filter((supply: Supply) => {
         // Text search filter
         if (searchText && !supply.name.toLowerCase().includes(searchText.toLowerCase())) {
@@ -31,10 +31,10 @@ export default function SuppliesPage() {
         }
 
         // Dietary filter - only apply to ingredients
-        if (dietFilter === 'vegetarian' && supply.isIngredient && (supply as Ingredient).isVegetarian === false) {
+        if (dietFilter === 'vegetarian' && isIngredient(supply) && supply.isVegetarian === false) {
           return false;
         }
-        if (dietFilter === 'vegan' && supply.isIngredient && (supply as Ingredient).isVegan === false) {
+        if (dietFilter === 'vegan' && isIngredient(supply) && supply.isVegan === false) {
           return false;
         }
 
@@ -158,10 +158,10 @@ export default function SuppliesPage() {
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
                     <h3 className="font-semibold text-lg">{supply.name}</h3>
-                    {supply.isIngredient && (supply as Ingredient).isVegetarian && (
+                    {isIngredient(supply) && supply.isVegetarian && (
                       <span className="badge-vegetarian">V</span>
                     )}
-                    {supply.isIngredient && (supply as Ingredient).isVegan && (
+                    {isIngredient(supply) && supply.isVegan && (
                       <span className="badge-vegan">VG</span>
                     )}
                   </div>

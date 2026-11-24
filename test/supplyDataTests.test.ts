@@ -1,8 +1,6 @@
-import { supplyRepository } from '../src/data/supplyRepository';
-import { groupSuppliesByCategory } from '../src/model/supplyData';
+import { supplyCatalog } from '../src/data/supplyRepository';
+import { Supply } from '../src/model/supply';
 import { SupplyValidationErrors } from '../src/types';
-
-const { getAll: getAllSupplies, getIngredients, getNonIngredients } = supplyRepository;
 
 describe('supplyData functions', () => {
   const findGroup = (groups: CategoryGroup[], category: string) =>
@@ -10,7 +8,7 @@ describe('supplyData functions', () => {
 
   describe('getAllSupplies', () => {
     it('should return all supplies', () => {
-      const supplies = getAllSupplies();
+      const supplies = supplyCatalog.all;
       expect(Array.isArray(supplies)).toBe(true);
       expect(supplies.length).toBeGreaterThan(0);
       supplies.forEach(supply => {
@@ -25,7 +23,7 @@ describe('supplyData functions', () => {
 
   describe('getIngredients', () => {
     it('should return only ingredients', () => {
-      const ingredients = getIngredients();
+      const ingredients = supplyCatalog.ingredients;
       expect(Array.isArray(ingredients)).toBe(true);
       ingredients.forEach(ingredient => {
         expect(ingredient.isIngredient).toBe(true);
@@ -38,7 +36,7 @@ describe('supplyData functions', () => {
 
   describe('getNonIngredients', () => {
     it('should return only non-ingredients', () => {
-      const nonIngredients = getNonIngredients();
+      const nonIngredients = supplyCatalog.nonIngredients;
       expect(Array.isArray(nonIngredients)).toBe(true);
       nonIngredients.forEach(supply => {
         expect(supply.isIngredient).toBe(false);
@@ -55,7 +53,7 @@ describe('supplyData functions', () => {
         { id: '4', name: 'Mleko', category: 'nabiał', isIngredient: true, unit: 'sztuki' }
       ];
 
-      const grouped = groupSuppliesByCategory(supplies);
+      const grouped = groupSuppliesByCategory(supplies.map(Supply.fromData));
 
       expect(grouped).toHaveLength(3);
       expect(findGroup(grouped, 'owoce')!.supplies).toHaveLength(2);
@@ -74,7 +72,7 @@ describe('supplyData functions', () => {
         { id: '2', name: 'Banan', category: 'owoce', isIngredient: true, unit: 'sztuki' }
       ];
 
-      const grouped = groupSuppliesByCategory(supplies);
+      const grouped = groupSuppliesByCategory(supplies.map(Supply.fromData));
 
       expect(grouped).toHaveLength(2);
       expect(findGroup(grouped, 'inne')!.supplies).toHaveLength(1);
@@ -91,7 +89,7 @@ describe('supplyData functions', () => {
         { id: '1', name: 'Jabłko', category: '', isIngredient: true, unit: 'sztuki' }
       ];
 
-      const grouped = groupSuppliesByCategory(supplies);
+      const grouped = groupSuppliesByCategory(supplies.map(Supply.fromData));
 
       expect(grouped).toHaveLength(1);
       expect(findGroup(grouped, 'inne')!.supplies).toHaveLength(1);
@@ -104,7 +102,7 @@ describe('supplyData functions', () => {
         { id: '3', name: 'Chleb', category: 'pieczywo', isIngredient: false, unit: 'sztuki' }
       ];
 
-      const grouped = groupSuppliesByCategory(supplies);
+      const grouped = groupSuppliesByCategory(supplies.map(Supply.fromData));
 
       expect(grouped).toHaveLength(3);
       expect(grouped[0].category).toBe('nabiał');
@@ -117,18 +115,22 @@ describe('supplyData functions', () => {
 /* Disabling for now as there is pending MR
 describe('supplies data sorting', () => {
   it('should have supplies sorted by name', () => {
-    const supplies = getAllSupplies();
+    const supplies = supplyCatalog.all;
     const sortedSupplies = [...supplies].sort((a, b) => a.name.localeCompare(b.name));
     expect(supplies).toEqual(sortedSupplies);
   });
 });
 */
 
-import { validateSupplyData, isSupplyDataValid, validateNewSupply } from '../src/model/supplyData';
-import { CategoryGroup } from '@/model/supply';
+import { SupplyCatalog, isSupplyDataValid } from '../src/model/supply';
+
+const emptyCatalog = new SupplyCatalog([]);
+const validateSupplyData = (draft: Parameters<typeof supplyCatalog.createSupply>[0]) => emptyCatalog.createSupply(draft).errors;
+const validateNewSupply = (draft: Parameters<typeof supplyCatalog.createSupply>[0]) => supplyCatalog.createSupply(draft).errors;
+import { groupSuppliesByCategory, type CategoryGroup } from '../src/model/cruise/supplies';
 
 describe('Supply Validation', () => {
-  describe('validateSupplyData', () => {
+  describe('field validation', () => {
     const noErrors = { name: '', unit: '', category: '', isVegetarian: '', isVegan: '', general: '' };
 
     it('should validate a valid supply', () => {
@@ -260,7 +262,7 @@ describe('Supply Validation', () => {
     });
   });
 
-  describe('validateNewSupply', () => {
+  describe('catalog validation', () => {
     it('should validate a new unique supply', () => {
       const supply = {
         name: 'Unique Test Product',
@@ -269,7 +271,7 @@ describe('Supply Validation', () => {
         isIngredient: false
       };
 
-      const errors = validateNewSupply(supply, supplyRepository.getAll());
+      const errors = validateNewSupply(supply);
       expect(errors.name).toBe('');
       expect(errors.unit).toBe('');
       expect(errors.category).toBe('');
@@ -277,7 +279,7 @@ describe('Supply Validation', () => {
 
     it('should detect duplicate names', () => {
       // Get an existing supply name
-      const existingSupply = getAllSupplies()[0];
+      const existingSupply = supplyCatalog.all[0];
       const supply = {
         name: existingSupply.name,
         unit: 'sztuki',
@@ -285,12 +287,12 @@ describe('Supply Validation', () => {
         isIngredient: false
       };
 
-      const errors = validateNewSupply(supply, supplyRepository.getAll());
+      const errors = validateNewSupply(supply);
       expect(errors.name).toBe(`Produkt o nazwie "${existingSupply.name}" już istnieje`);
     });
 
     it('should be case insensitive for duplicate names', () => {
-      const existingSupply = getAllSupplies()[0];
+      const existingSupply = supplyCatalog.all[0];
       const supply = {
         name: existingSupply.name.toUpperCase(),
         unit: 'sztuki',
@@ -298,13 +300,51 @@ describe('Supply Validation', () => {
         isIngredient: false
       };
 
-      const errors = validateNewSupply(supply, supplyRepository.getAll());
+      const errors = validateNewSupply(supply);
       expect(errors.name).toBe(`Produkt o nazwie "${existingSupply.name.toUpperCase()}" już istnieje`);
     });
 
     it('should trim whitespace around duplicate names', () => {
-      const name = getAllSupplies()[0].name.toUpperCase();
-      expect(validateNewSupply({ name: `  ${name}  ` }, supplyRepository.getAll()).name).toBe(`Produkt o nazwie "${name}" już istnieje`);
+      const name = supplyCatalog.all[0].name.toUpperCase();
+      expect(validateNewSupply({ name: `  ${name}  ` }).name).toBe(`Produkt o nazwie "${name}" już istnieje`);
+    });
+  });
+
+  describe('createSupply', () => {
+    it('should reject empty and conflicting generated IDs', () => {
+      const fields = { unit: 'kg', category: 'inne' };
+      const collision = supplyCatalog.createSupply({ ...fields, name: 'Cukier!' });
+      expect(collision.supply).toBeUndefined();
+      expect(collision.errors.name).toContain('ID "cukier"');
+      const emptyId = supplyCatalog.createSupply({ ...fields, name: '!!!' });
+      expect(emptyId.supply).toBeUndefined();
+      expect(emptyId.errors.name).toContain('Nie można wygenerować ID');
+    });
+
+    it('should export normalized ingredient and non-food product data', () => {
+      const ingredient = supplyCatalog.createSupply({
+        name: ' Test Flour ', unit: ' kg ', category: ' zboża ', description: ' Test ', defaultAmount: ' 0.25 ',
+        isIngredient: true, isVegetarian: true, isVegan: false,
+      }).supply;
+      expect(JSON.parse(JSON.stringify(ingredient?.toData()))).toEqual({
+        id: 'test-flour', name: 'Test Flour', unit: 'kg', category: 'zboża', description: 'Test', defaultAmount: 0.25,
+        isIngredient: true, isVegetarian: true, isVegan: false,
+      });
+
+      const supply = supplyCatalog.createSupply({
+        name: ' Spare Brush ', unit: ' sztuki ', category: ' sprzęt ', description: ' ', defaultAmount: '',
+        isIngredient: false, isVegetarian: true, isVegan: true,
+      }).supply;
+      expect(JSON.parse(JSON.stringify(supply?.toData()))).toEqual({
+        id: 'spare-brush', name: 'Spare Brush', unit: 'sztuki', category: 'sprzęt', isIngredient: false,
+      });
+    });
+
+    it('should reject invalid default amounts and preserve zero', () => {
+      const fields = { name: 'Test Product', unit: 'kg', category: 'inne' };
+      expect(emptyCatalog.createSupply({ ...fields, defaultAmount: '-1' }).errors.general).toBeTruthy();
+      expect(emptyCatalog.createSupply({ ...fields, defaultAmount: 'Infinity' }).supply).toBeUndefined();
+      expect(emptyCatalog.createSupply({ ...fields, defaultAmount: '0' }).supply?.defaultAmount).toBe(0);
     });
   });
 });

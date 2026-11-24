@@ -56,7 +56,7 @@ erDiagram
 - A meal slot is identified by a day and a meal type. It is represented by `RecipeAssignment.mealSlot`, not a separate object. Multiple assignments can share the same slot. Meal types are `śniadanie`, `obiad`, `kolacja`, and `przekąska`.
 - `crewCount` means portions for that assignment, not the number of people in the cruise's crew.
 
-The aggregate exposes organization, crew, and meal plan operations through `cruise.organization`, `cruise.crew`, and `cruise.mealPlan`. Each edit returns a full cruise snapshot. Cruise duration is derived from meal plan days, so changing duration and removing assignments on removed days happen in the same operation. The root keeps the cruise ID and timestamps and exposes frozen compatibility fields in the original serialized shape. [Cruise](../src/model/cruise/index.ts), [organization](../src/model/cruise/organization.ts), [crew](../src/model/cruise/crew.ts), [meal plan](../src/model/cruise/mealPlan.ts), [restoration](../src/model/cruise/restoration.ts), [diet coverage](../src/model/cruiseDietCoverage.ts).
+The cruise owns its name, start date, ID, and timestamps. `MealPlan` and `CruiseSupplies` return local edits that the cruise installs through `updateMealPlan` and `updateSupplies`. `Crew` edits target stable member IDs. Forms apply the crew draft through `replaceCrew` on save, which persists any repaired legacy member IDs. Cruise duration comes from the meal plan. Shortening a cruise removes the old days and their assignments together. The cruise emits the existing JSON shape through `toJSON`. [Cruise](../src/model/cruise/index.ts), [crew](../src/model/crew.ts), [meal plan](../src/model/cruise/mealPlan/index.ts), [supplies](../src/model/cruise/supplies.ts), [restoration](../src/data/cruiseRepository.ts), [diet coverage](../src/model/cruise/mealPlan/cruiseDietCoverage.ts).
 
 ## Recipes, ingredients, and catalog supplies
 
@@ -89,13 +89,13 @@ erDiagram
     }
 ```
 
-- The recipe structure applies to both catalog recipes and assignment snapshots. A snapshot can be edited independently of the catalog recipe.
-- An ingredient is a specialization of a supply with the same identity, not a second catalog entry. Supplies also include non-food products.
+- The immutable `Recipie` owns edits, portion scaling, and diet checks with a caller-supplied ingredient lookup. The catalog and cruise assignment snapshots share the `RecipieData` JSON shape. A snapshot can be edited independently of the catalog recipe.
+- An ingredient is a specialization of a supply with the same identity, not a second catalog entry. Supplies also include non-food products. `Supply.create` normalizes and validates one product. `SupplyCatalog.createSupply` also checks catalog names and IDs. `Supply.fromData` preserves stored IDs, and `toData()` exports a plain record.
 - Ingredient quantity is an embedded value containing a supply ID and an amount per person. It is not the ingredient catalog record itself.
 - `mealType` describes the recipe's suitable meal types; `mealSlot` places one assignment in a day's plan.
 - Valid new recipes have at least one ingredient quantity. Ingredient IDs should resolve to ingredient supplies; missing references and older snapshots can still occur in stored data. A recipe is confirmed vegetarian or vegan only when every ingredient resolves and has the corresponding property.
 
-Source: [recipe.ts](../src/model/recipe.ts), [supply.ts](../src/model/supply.ts), [recipieData.ts](../src/model/recipieData.ts).
+Source: [recipe.ts](../src/model/recipe.ts), [supply.ts](../src/model/supply.ts).
 
 ## Additional supplies and derived shopping list
 
@@ -138,7 +138,7 @@ erDiagram
 - Amount sources preserve the explanation of each contribution: recipe sources include recipe name, day number, and portion count; additional supply sources include scaling flags. They do not store references to assignment objects.
 - Missing supply IDs produce placeholder supplies in the shopping list rather than dropping the contribution.
 
-Use `cruise.supplies` to update or query additional supplies. Use `cruise.shoppingList.aggregate()` to calculate the shopping list from the current meal plan, crew size, and additional supplies. [Additional supplies](../src/model/cruise/supplies.ts), [shopping list](../src/model/cruise/shoppingList.ts).
+Use `cruise.supplies` to update or query additional supplies. Use `cruise.shoppingList.aggregate(supplyCatalog)` to calculate the shopping list from the current meal plan, crew size, and additional supplies. [Additional supplies](../src/model/cruise/supplies.ts), [shopping list](../src/model/cruise/shoppingList.ts).
 
 ## Mapping discussion terms to code
 
@@ -148,7 +148,7 @@ Use `cruise.supplies` to update or query additional supplies. Use `cruise.shoppi
 | Cruise day | `CruiseDay` |
 | Crew member | `CrewMember` |
 | Recipe assignment | `CruiseDayRecipe` |
-| Catalog recipe / recipe snapshot | `Recipie` / `CruiseDayRecipe.recipeData` |
+| Catalog recipe / recipe snapshot | `Recipie` / `CruiseDayRecipe.recipeData` of type `RecipieData` |
 | Ingredient quantity | `IngredientAmount` |
 | Supply / ingredient | `Supply` / `Ingredient extends Supply` |
 | Additional supply | `CruiseSupply` |

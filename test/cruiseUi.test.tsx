@@ -1,6 +1,6 @@
 /** @jest-environment jsdom */
 import { recipieRepository } from '../src/data/recipieRepository';
-import { supplyRepository } from '../src/data/supplyRepository';
+import { supplyCatalog } from '../src/data/supplyRepository';
 import React, { useRef, useState } from 'react';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { CruiseProvider, useCruise } from '../src/app/rejsy/CruiseProvider';
@@ -10,10 +10,11 @@ import { Cruise } from '../src/model/cruise';
 import { MealType } from '../src/model/recipe';
 import { cruiseRepository } from '../src/data/cruiseRepository';
 import EditCruisePage from '../src/app/rejsy/edytuj/page';
+import AddCruiseForm from '../src/components/AddCruiseForm';
 import CruisesPage from '../src/app/rejsy/page';
 
 const { getAll: getRecipies } = recipieRepository;
-const { getSuppliesByType } = supplyRepository;
+
 
 let routeId = '';
 jest.mock('next/navigation', () => ({
@@ -37,8 +38,8 @@ afterEach(() => { cleanup(); localStorage.clear(); jest.restoreAllMocks(); });
 
 function makeCruise(name: string) {
   return Cruise.createNew(name, 2, crew)
-    .addRecipe({ day: 1, slot: MealType.DINNER, recipe, portions: 1 })
-    .addRecipe({ day: 1, slot: MealType.DINNER, recipe, portions: 2 });
+    .updateMealPlan(plan => plan.addRecipe({ day: 1, slot: MealType.DINNER, recipe, portions: 1 }))
+    .updateMealPlan(plan => plan.addRecipe({ day: 1, slot: MealType.DINNER, recipe, portions: 2 }));
 }
 
 function Probe() {
@@ -66,6 +67,18 @@ function QueueProbe() {
     void setCruise(current => current.rename('Renamed'));
     void setCruise(current => current.changeStartDate('2027-05-01'));
   }}>{cruise.name}</button>;
+}
+
+function PortionQueueProbe() {
+  const { cruise, setCruise } = useCruise();
+  const assignments = cruise.mealPlan.getRecipeAssignments({ day: 1, slot: MealType.DINNER });
+  return <button onClick={() => {
+    for (const assignment of assignments) {
+      void setCruise(current => current.updateMealPlan(plan =>
+        plan.changePortions({ assignment, portions: assignment.portions + 1 })
+      ));
+    }
+  }}>{assignments.map(assignment => assignment.portions).join(', ')}</button>;
 }
 
 describe('cruise UI', () => {
@@ -96,20 +109,20 @@ describe('cruise UI', () => {
     const name = screen.getByDisplayValue(recipe.name);
     fireEvent.change(name, { target: { value: 'Second assignment' } });
     await act(async () => { fireEvent.click(screen.getByText('Zapisz')); });
-    let assignments = (await cruiseRepository.getById(cruise.id))!.getRecipeAssignments({ day: 1, slot: MealType.DINNER });
+    let assignments = (await cruiseRepository.getById(cruise.id))!.mealPlan.getRecipeAssignments({ day: 1, slot: MealType.DINNER });
     expect(assignments.map(a => a.recipe.name)).toEqual([recipe.name, 'Second assignment']);
     const card = screen.getByText('Second assignment').closest('li')!;
     await act(async () => { fireEvent.click(within(card).getByText('Usuń')); });
-    assignments = (await cruiseRepository.getById(cruise.id))!.getRecipeAssignments({ day: 1, slot: MealType.DINNER });
+    assignments = (await cruiseRepository.getById(cruise.id))!.mealPlan.getRecipeAssignments({ day: 1, slot: MealType.DINNER });
     expect(assignments.map(a => a.recipe.name)).toEqual([recipe.name]);
   });
   it('should reorder in both directions and move across days and slots with one write per move', async () => {
-    const cruise = makeCruise('Cruise').addRecipe({ day: 2, slot: MealType.SUPPER, recipe, portions: 3 });
+    const cruise = makeCruise('Cruise').updateMealPlan(plan => plan.addRecipe({ day: 2, slot: MealType.SUPPER, recipe, portions: 3 }));
     await cruiseRepository.save(cruise);
     render(<CruiseProvider cruiseId={cruise.id}><CruiseMenuTab /></CruiseProvider>);
     await screen.findAllByText('Edytuj składniki');
     const write = jest.spyOn(Storage.prototype, 'setItem');
-    const assignments = async (day: number, slot: MealType) => (await cruiseRepository.getById(cruise.id))!.getRecipeAssignments({ day, slot });
+    const assignments = async (day: number, slot: MealType) => (await cruiseRepository.getById(cruise.id))!.mealPlan.getRecipeAssignments({ day, slot });
     const drop = async (source: Awaited<ReturnType<typeof assignments>>[number], day: number, slot: MealType, targetDay: number, targetSlot: MealType, before?: Awaited<ReturnType<typeof assignments>>[number]) => {
       await act(async () => dragEnd!({
         active: { id: source.key, data: { current: { type: 'recipe', assignment: source, dayNumber: day, mealSlot: slot } } },
@@ -184,6 +197,21 @@ describe('cruise UI', () => {
     expect((await cruiseRepository.getById(cruise.id))!.name).toBe('Retry succeeded');
   });
 
+  it('should queue portion edits from one render and retain later edits after a failed save', async () => {
+    const cruise = makeCruise('Cruise');
+    await cruiseRepository.save(cruise);
+    const save = jest.spyOn(cruiseRepository, 'save').mockRejectedValueOnce(new Error('quota'));
+    render(<CruiseProvider cruiseId={cruise.id}><PortionQueueProbe /></CruiseProvider>);
+    const button = await screen.findByRole('button', { name: '1, 2' });
+    await act(async () => { fireEvent.click(button); });
+    expect(button.textContent).toBe('1, 3');
+    expect(save).toHaveBeenCalledTimes(2);
+    await act(async () => { fireEvent.click(button); });
+    expect(button.textContent).toBe('2, 4');
+    const stored = (await cruiseRepository.getById(cruise.id))!;
+    expect(stored.mealPlan.getRecipeAssignments({ day: 1, slot: MealType.DINNER }).map(item => item.portions)).toEqual([2, 4]);
+  });
+
   it('should apply later changes to the last saved cruise', async () => {
     const cruise = makeCruise('First');
     await cruiseRepository.save(cruise);
@@ -218,21 +246,53 @@ describe('cruise UI', () => {
     expect((await cruiseRepository.getById(cruise.id))!.startDate).toBeUndefined();
   });
 
+  it('should keep crew edits local until the cruise form is submitted', async () => {
+    const original = Cruise.createNew('Cruise', 1, [...crew, { id: 'second', name: 'Beata', diet: 'omnivore' }]);
+    await cruiseRepository.save(original);
+    routeId = original.id;
+    const cancelled = render(<EditCruisePage />);
+    fireEvent.change(await screen.findByDisplayValue('Anna'), { target: { value: 'Draft' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Anuluj' }));
+    cancelled.unmount();
+    expect((await cruiseRepository.getById(original.id))!.crew.members[0].name).toBe('Anna');
+
+    jest.spyOn(window, 'confirm').mockReturnValue(true);
+    render(<EditCruisePage />);
+    await screen.findByDisplayValue('Anna');
+    fireEvent.click(screen.getAllByRole('button', { name: 'Rozwiń' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Usuń członka załogi' }));
+    fireEvent.change(screen.getByDisplayValue('Beata'), { target: { value: 'Barbara' } });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Zapisz zmiany' })); });
+    expect((await cruiseRepository.getById(original.id))!.crew.members).toEqual([
+      { id: 'second', name: 'Barbara', diet: 'omnivore' },
+    ]);
+  });
+
+  it('should create a cruise with a member from the add form draft', async () => {
+    render(<AddCruiseForm />);
+    fireEvent.change(screen.getByLabelText('Nazwa rejsu'), { target: { value: 'New cruise' } });
+    fireEvent.click(screen.getByRole('button', { name: '+ Zaokrętuj' }));
+    fireEvent.change(screen.getByDisplayValue('Załogant #1'), { target: { value: 'Anna' } });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Zapisz rejs' })); });
+    const [created] = await cruiseRepository.getAll();
+    expect(created.crew.members).toEqual([expect.objectContaining({ name: 'Anna', diet: 'omnivore' })]);
+  });
+
   it('should cancel or confirm a supply scaling collision and merge base amounts', async () => {
-    const supply = getSuppliesByType(false)[0];
+    const supply = supplyCatalog.nonIngredients[0];
     const cruise = makeCruise('Cruise')
-      .addAdditionalSupply({ id: supply.id, amount: 3, isPerPerson: false, isPerDay: false })
-      .addAdditionalSupply({ id: supply.id, amount: 5, isPerPerson: true, isPerDay: false });
+      .updateSupplies(supplies => supplies.add({ id: supply.id, amount: 3, isPerPerson: false, isPerDay: false }))
+      .updateSupplies(supplies => supplies.add({ id: supply.id, amount: 5, isPerPerson: true, isPerDay: false }));
     await cruiseRepository.save(cruise);
     const confirm = jest.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
     render(<CruiseProvider cruiseId={cruise.id}><CruiseSuppliesTab /></CruiseProvider>);
     const shopping = (await screen.findByText('Lista zakupów')).parentElement!;
     const fixedRow = (await within(shopping).findAllByText(supply.name))[0].closest('li')!;
     await act(async () => { fireEvent.change(within(fixedRow).getByRole('combobox'), { target: { value: 'perPerson' } }); });
-    expect((await cruiseRepository.getById(cruise.id))!.additionalSupplies).toHaveLength(2);
+    expect((await cruiseRepository.getById(cruise.id))!.supplies.entries).toHaveLength(2);
     await act(async () => { fireEvent.change(within(fixedRow).getByRole('combobox'), { target: { value: 'perPerson' } }); });
     expect(confirm).toHaveBeenCalledTimes(2);
-    expect((await cruiseRepository.getById(cruise.id))!.additionalSupplies).toEqual([
+    expect((await cruiseRepository.getById(cruise.id))!.supplies.entries).toEqual([
       expect.objectContaining({ id: supply.id, amount: 8, isPerPerson: true, isPerDay: false }),
     ]);
   });

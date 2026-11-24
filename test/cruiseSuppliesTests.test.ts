@@ -1,3 +1,4 @@
+import { supplyCatalog } from '../src/data/supplyRepository';
 import { Cruise, CruiseSupply } from '../src/model/cruise';
 import { makeCrewMembers } from './cruiseTestHarness';
 
@@ -29,10 +30,10 @@ describe('cruiseSupplies', () => {
     it('should add a new non-ingredient supply to a cruise', () => {
       let cruise = setupTestCruise();
 
-      cruise = cruise.upsertAdditionalSupply({ id: 'papier_toaletowy', amount: 7, isPerPerson: false, isPerDay: false });
+      cruise = cruise.updateSupplies(supplies => supplies.upsert({ id: 'papier_toaletowy', amount: 7, isPerPerson: false, isPerDay: false }));
 
-      expect(cruise.additionalSupplies).toHaveLength(1);
-      expect(cruise.additionalSupplies[0]).toEqual(supply('papier_toaletowy', 7, false, false));
+      expect(cruise.supplies.entries).toHaveLength(1);
+      expect(cruise.supplies.entries[0]).toEqual(supply('papier_toaletowy', 7, false, false));
     });
 
     it('should overwrite the amount if supply already exists (last write wins)', () => {
@@ -40,33 +41,33 @@ describe('cruiseSupplies', () => {
         supplies: [{ id: 'woda_butelkowana', amount: 10, isPerPerson: false, isPerDay: false }],
       });
 
-      cruise = cruise.upsertAdditionalSupply({ id: 'woda_butelkowana', amount: 15, isPerPerson: false, isPerDay: false });
+      cruise = cruise.updateSupplies(supplies => supplies.upsert({ id: 'woda_butelkowana', amount: 15, isPerPerson: false, isPerDay: false }));
 
-      expect(cruise.additionalSupplies).toHaveLength(1);
+      expect(cruise.supplies.entries).toHaveLength(1);
       // overwrite, not additive: 10 replaced by 15
-      expect(cruise.additionalSupplies[0]).toEqual(supply('woda_butelkowana', 15, false, false));
+      expect(cruise.supplies.entries[0]).toEqual(supply('woda_butelkowana', 15, false, false));
     });
 
     it('should keep only the last value when upserting the same supply multiple times', () => {
       let cruise = setupTestCruise();
 
       cruise = cruise
-        .upsertAdditionalSupply({ id: 'woda_butelkowana', amount: 5, isPerPerson: false, isPerDay: false })
-        .upsertAdditionalSupply({ id: 'woda_butelkowana', amount: 10, isPerPerson: false, isPerDay: false })
-        .upsertAdditionalSupply({ id: 'woda_butelkowana', amount: 8, isPerPerson: false, isPerDay: false });
+        .updateSupplies(supplies => supplies.upsert({ id: 'woda_butelkowana', amount: 5, isPerPerson: false, isPerDay: false }))
+        .updateSupplies(supplies => supplies.upsert({ id: 'woda_butelkowana', amount: 10, isPerPerson: false, isPerDay: false }))
+        .updateSupplies(supplies => supplies.upsert({ id: 'woda_butelkowana', amount: 8, isPerPerson: false, isPerDay: false }));
 
-      expect(cruise.additionalSupplies).toHaveLength(1);
+      expect(cruise.supplies.entries).toHaveLength(1);
       // last write wins: final upsert of 8
-      expect(cruise.additionalSupplies[0]).toEqual(supply('woda_butelkowana', 8, false, false));
+      expect(cruise.supplies.entries[0]).toEqual(supply('woda_butelkowana', 8, false, false));
     });
 
     it('should add a supply to a cruise that starts with no additional supplies', () => {
       let cruise = setupTestCruise();
 
-      cruise = cruise.upsertAdditionalSupply({ id: 'mydło', amount: 4, isPerPerson: false, isPerDay: false });
+      cruise = cruise.updateSupplies(supplies => supplies.upsert({ id: 'mydło', amount: 4, isPerPerson: false, isPerDay: false }));
 
-      expect(cruise.additionalSupplies).toHaveLength(1);
-      expect(cruise.additionalSupplies[0]).toEqual(supply('mydło', 4, false, false));
+      expect(cruise.supplies.entries).toHaveLength(1);
+      expect(cruise.supplies.entries[0]).toEqual(supply('mydło', 4, false, false));
     });
   });
 
@@ -79,20 +80,20 @@ describe('cruiseSupplies', () => {
         ],
       });
 
-      cruise = cruise.upsertAdditionalSupply({ id: 'papier_toaletowy', amount: 10, isPerPerson: false, isPerDay: false });
+      cruise = cruise.updateSupplies(supplies => supplies.upsert({ id: 'papier_toaletowy', amount: 10, isPerPerson: false, isPerDay: false }));
 
-      expect(cruise.additionalSupplies).toHaveLength(2);
-      expect(findSupply(cruise.additionalSupplies, 'papier_toaletowy')?.amount).toBe(10);
-      expect(findSupply(cruise.additionalSupplies, 'woda_butelkowana')?.amount).toBe(20);
+      expect(cruise.supplies.entries).toHaveLength(2);
+      expect(findSupply(cruise.supplies.entries, 'papier_toaletowy')?.amount).toBe(10);
+      expect(findSupply(cruise.supplies.entries, 'woda_butelkowana')?.amount).toBe(20);
     });
 
     it('should add a new entry if the cruise has no additional supplies', () => {
       let cruise = setupTestCruise();
 
-      cruise = cruise.upsertAdditionalSupply({ id: 'papier_toaletowy', amount: 10, isPerPerson: false, isPerDay: false });
+      cruise = cruise.updateSupplies(supplies => supplies.upsert({ id: 'papier_toaletowy', amount: 10, isPerPerson: false, isPerDay: false }));
 
-      expect(cruise.additionalSupplies).toHaveLength(1);
-      expect(cruise.additionalSupplies[0]).toEqual(supply('papier_toaletowy', 10, false, false));
+      expect(cruise.supplies.entries).toHaveLength(1);
+      expect(cruise.supplies.entries[0]).toEqual(supply('papier_toaletowy', 10, false, false));
     });
 
     it('should add a new entry if the supply does not exist yet', () => {
@@ -100,10 +101,10 @@ describe('cruiseSupplies', () => {
         supplies: [{ id: 'woda_butelkowana', amount: 20, isPerPerson: false, isPerDay: false }],
       });
 
-      cruise = cruise.upsertAdditionalSupply({ id: 'papier_toaletowy', amount: 10, isPerPerson: false, isPerDay: false });
+      cruise = cruise.updateSupplies(supplies => supplies.upsert({ id: 'papier_toaletowy', amount: 10, isPerPerson: false, isPerDay: false }));
 
-      expect(cruise.additionalSupplies).toHaveLength(2);
-      expect(cruise.additionalSupplies).toEqual(expect.arrayContaining([
+      expect(cruise.supplies.entries).toHaveLength(2);
+      expect(cruise.supplies.entries).toEqual(expect.arrayContaining([
         supply('papier_toaletowy', 10, false, false),
         supply('woda_butelkowana', 20, false, false),
       ]));
@@ -114,16 +115,16 @@ describe('cruiseSupplies', () => {
     it('should add amounts and find supplies by their complete scaling key', () => {
       const fixed = { id: 'water', amount: 3, isPerPerson: false, isPerDay: false };
       const daily = { ...fixed, amount: 7, isPerDay: true };
-      const cruise = setupTestCruise({ supplies: [] }).addAdditionalSupply(fixed)
-        .addAdditionalSupply(daily).addAdditionalSupply({ ...fixed, amount: 2 });
-      expect(cruise.getAdditionalSupplyAmount('water', false, false)).toBe(5);
-      expect(cruise.getAdditionalSupplyAmount('water', false, true)).toBe(7);
-      expect(cruise.getAdditionalSupplyAmount('water', true, false)).toBeNull();
-      expect(cruise.hasAdditionalSupply('water', false, true)).toBe(true);
-      expect(cruise.hasAdditionalSupply('water', true, true)).toBe(false);
-      const removed = cruise.removeAdditionalSupply('water', false, false);
-      expect(removed.hasAdditionalSupply('water', false, false)).toBe(false);
-      expect(removed.getAdditionalSupplyAmount('water', false, true)).toBe(7);
+      const cruise = setupTestCruise({ supplies: [] }).updateSupplies(supplies => supplies.add(fixed))
+        .updateSupplies(supplies => supplies.add(daily)).updateSupplies(supplies => supplies.add({ ...fixed, amount: 2 }));
+      expect(cruise.supplies.amountFor('water', false, false)).toBe(5);
+      expect(cruise.supplies.amountFor('water', false, true)).toBe(7);
+      expect(cruise.supplies.amountFor('water', true, false)).toBeNull();
+      expect(cruise.supplies.has('water', false, true)).toBe(true);
+      expect(cruise.supplies.has('water', true, true)).toBe(false);
+      const removed = cruise.updateSupplies(supplies => supplies.remove('water', false, false));
+      expect(removed.supplies.has('water', false, false)).toBe(false);
+      expect(removed.supplies.amountFor('water', false, true)).toBe(7);
     });
   });
 
@@ -137,20 +138,20 @@ describe('cruiseSupplies', () => {
         ],
       });
 
-      cruise = cruise.removeAdditionalSupply('mydło', false, false);
+      cruise = cruise.updateSupplies(supplies => supplies.remove('mydło', false, false));
 
-      expect(cruise.additionalSupplies).toHaveLength(2);
-      expect(findSupply(cruise.additionalSupplies, 'mydło')).toBeUndefined();
-      expect(findSupply(cruise.additionalSupplies, 'papier_toaletowy')).toBeDefined();
-      expect(findSupply(cruise.additionalSupplies, 'woda_butelkowana')).toBeDefined();
+      expect(cruise.supplies.entries).toHaveLength(2);
+      expect(findSupply(cruise.supplies.entries, 'mydło')).toBeUndefined();
+      expect(findSupply(cruise.supplies.entries, 'papier_toaletowy')).toBeDefined();
+      expect(findSupply(cruise.supplies.entries, 'woda_butelkowana')).toBeDefined();
     });
 
     it('should do nothing if the cruise has no additional supplies', () => {
       let cruise = setupTestCruise();
 
-      cruise = cruise.removeAdditionalSupply('mydło', false, false);
+      cruise = cruise.updateSupplies(supplies => supplies.remove('mydło', false, false));
 
-      expect(cruise.additionalSupplies).toHaveLength(0);
+      expect(cruise.supplies.entries).toHaveLength(0);
     });
 
     it('should leave supplies untouched when the target supply does not exist', () => {
@@ -158,10 +159,10 @@ describe('cruiseSupplies', () => {
         supplies: [{ id: 'woda_butelkowana', amount: 28, isPerPerson: false, isPerDay: false }],
       });
 
-      cruise = cruise.removeAdditionalSupply('mydło', false, false);
+      cruise = cruise.updateSupplies(supplies => supplies.remove('mydło', false, false));
 
-      expect(cruise.additionalSupplies).toHaveLength(1);
-      expect(cruise.additionalSupplies[0].id).toBe('woda_butelkowana');
+      expect(cruise.supplies.entries).toHaveLength(1);
+      expect(cruise.supplies.entries[0].id).toBe('woda_butelkowana');
     });
   });
 
@@ -171,7 +172,7 @@ describe('cruiseSupplies', () => {
         { id: 'unknown-supply', amount: 2, isPerPerson: false, isPerDay: false },
         { id: 'woda_butelkowana', amount: 3, isPerPerson: false, isPerDay: false },
       ] });
-      const grouped = cruise.groupAdditionalSuppliesByCategory();
+      const grouped = cruise.supplies.groupByCategory(supplyCatalog);
       expect(grouped.flatMap(group => group.supplies).map(item => item.supply.id)).toEqual(['woda_butelkowana']);
     });
     it('should group additional supplies by category', () => {
@@ -186,7 +187,7 @@ describe('cruiseSupplies', () => {
         length: 5,
       });
 
-      const grouped = cruise.groupAdditionalSuppliesByCategory();
+      const grouped = cruise.supplies.groupByCategory(supplyCatalog);
 
       expect(grouped).toHaveLength(2);
       expect(grouped.find(g => g.category === 'napoje')!.supplies).toHaveLength(2);
@@ -196,7 +197,7 @@ describe('cruiseSupplies', () => {
     it('should return empty array for cruise with no additional supplies', () => {
       const cruise = setupTestCruise({ length: 3, crew: 2 });
 
-      expect(cruise.groupAdditionalSuppliesByCategory()).toEqual([]);
+      expect(cruise.supplies.groupByCategory(supplyCatalog)).toEqual([]);
     });
 
     it('should sort categories alphabetically', () => {
@@ -210,7 +211,7 @@ describe('cruiseSupplies', () => {
         ],
       });
 
-      const grouped = cruise.groupAdditionalSuppliesByCategory();
+      const grouped = cruise.supplies.groupByCategory(supplyCatalog);
 
       expect(grouped).toHaveLength(2);
       expect(grouped[0].category).toBe('napoje');
@@ -227,7 +228,7 @@ describe('cruiseSupplies', () => {
         ],
       });
 
-      const grouped = cruise.groupAdditionalSuppliesByCategory();
+      const grouped = cruise.supplies.groupByCategory(supplyCatalog);
       const supplies = grouped.find(g => g.category === 'napoje')!.supplies;
 
       expect(supplies).toHaveLength(4);
@@ -258,17 +259,17 @@ describe('cruiseSupplies', () => {
       });
 
       cruise = cruise
-        .upsertAdditionalSupply({ id: 'woda_butelkowana', amount: 80, isPerPerson: false, isPerDay: false })
-        .upsertAdditionalSupply({ id: 'papier_toaletowy', amount: 20, isPerPerson: false, isPerDay: false });
+        .updateSupplies(supplies => supplies.upsert({ id: 'woda_butelkowana', amount: 80, isPerPerson: false, isPerDay: false }))
+        .updateSupplies(supplies => supplies.upsert({ id: 'papier_toaletowy', amount: 20, isPerPerson: false, isPerDay: false }));
 
-      expect(findSupply(cruise.additionalSupplies, 'woda_butelkowana')?.amount).toBe(80);
-      expect(findSupply(cruise.additionalSupplies, 'papier_toaletowy')?.amount).toBe(20);
+      expect(findSupply(cruise.supplies.entries, 'woda_butelkowana')?.amount).toBe(80);
+      expect(findSupply(cruise.supplies.entries, 'papier_toaletowy')?.amount).toBe(20);
 
       cruise = cruise
-        .removeAdditionalSupply('ręcznik_papierowy', false, false)
-        .removeAdditionalSupply('zapalniczka', false, false);
+        .updateSupplies(supplies => supplies.remove('ręcznik_papierowy', false, false))
+        .updateSupplies(supplies => supplies.remove('zapalniczka', false, false));
 
-      const finalSupplies = cruise.additionalSupplies;
+      const finalSupplies = cruise.supplies.entries;
       expect(finalSupplies).toHaveLength(8);
       expect(findSupply(finalSupplies, 'ręcznik_papierowy')).toBeUndefined();
       expect(findSupply(finalSupplies, 'zapalniczka')).toBeUndefined();

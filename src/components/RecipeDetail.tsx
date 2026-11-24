@@ -1,6 +1,6 @@
 "use client";
 
-import { getRecipieIngredients, isRecipieVegetarian, isRecipieVegan } from '@/model/recipieData';
+import { supplyCatalog } from '@/data/supplyRepository';
 import Link from 'next/link';
 import StarRating from './StarRating';
 import { declineUnit } from '../utils/polishDeclension';
@@ -72,9 +72,9 @@ export default function RecipeDetail({ dish: recipie }: RecipeDetailProps) {
     );
   }
 
-  const recipieIngredients = getRecipieIngredients(recipie.ingredients);
-  const isVegetarian = isRecipieVegetarian(recipie);
-  const isVegan = isRecipieVegan(recipie);
+  const recipieIngredients = recipie.ingredientDetails(supplyCatalog.getIngredientById);
+  const isVegetarian = recipie.matchesDiet('vegetarian', supplyCatalog.getIngredientById);
+  const isVegan = recipie.matchesDiet('vegan', supplyCatalog.getIngredientById);
 
   // Group ingredients by category
   const ingredientsByCategory = recipieIngredients.reduce((acc, ingredient) => {

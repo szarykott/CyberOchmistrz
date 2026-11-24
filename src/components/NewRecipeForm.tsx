@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { supplyRepository } from '@/data/supplyRepository';
+import { supplyCatalog } from '@/data/supplyRepository';
 import { recipieRepository } from '@/data/recipieRepository';
 import IngredientListEditor from './IngredientListEditor';
 import { Recipie, MealType, IngredientAmount } from '@/model/recipe';
@@ -24,7 +24,7 @@ export default function NewRecipeForm({ recipe }: NewRecipeFormProps) {
   const [modifiedBy, setModifiedBy] = useState<string[]>([]);
   const [newModifier, setNewModifier] = useState<string>('');
 
-  const allIngredients = supplyRepository.getIngredients();
+  const allIngredients = supplyCatalog.ingredients;
 
   // Initialize form with existing recipe data if provided
   useEffect(() => {
@@ -33,7 +33,7 @@ export default function NewRecipeForm({ recipe }: NewRecipeFormProps) {
       setDescription(recipe.description);
       setSelectedMealTypes(recipe.mealType.slice());
       setDifficulty(recipe.difficulty);
-      setIngredients(recipe.ingredients.length > 0 ? recipe.ingredients.slice() : [{ id: '', amount: 0 }]);
+      setIngredients(recipe.ingredients.length > 0 ? recipe.ingredients.map(ingredient => ({ ...ingredient })) : [{ id: '', amount: 0 }]);
       setInstructions(recipe.instructions.length > 0 ? recipe.instructions.slice() : ['']);
       setRecipeId(recipe.id);
       setDevelopedBy(recipe.developedBy || '');
@@ -156,7 +156,7 @@ export default function NewRecipeForm({ recipe }: NewRecipeFormProps) {
       finalModifiedBy = [...(modifiedBy || []), newModifier.trim()];
     }
 
-    const recipie: Recipie = {
+    const recipie = Recipie.create({
       id: finalId,
       name: recipeName.trim(),
       description: description.trim(),
@@ -166,7 +166,7 @@ export default function NewRecipeForm({ recipe }: NewRecipeFormProps) {
       instructions: filteredInstructions,
       developedBy: developedBy.trim() || undefined,
       modifiedBy: finalModifiedBy
-    };
+    });
 
     const jsonString = JSON.stringify(recipie, null, 2);
     setJsonOutput(jsonString);

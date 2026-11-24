@@ -1,5 +1,5 @@
-import { CruiseDayRecipe } from '@/model/cruise';
-import { CrewMember } from '../model/crew'
+import type { CruiseDayRecipe } from './index';
+import type { CrewMember } from '../../crew'
 
 /**
  * Checks if all member are fed

@@ -1,10 +1,7 @@
-import { supplyRepository } from '../src/data/supplyRepository';
-import { Supply, Ingredient } from '../src/model/supply';
-
-const { getAll: getAllSupplies, getById: getSupplyById, getIngredientById, getIngredients, getNonIngredients, getSuppliesByType } = supplyRepository;
+import { SupplyCatalog, Supply, Ingredient } from '../src/model/supply';
 
 // Mocked data for testing
-const mockedSupplies: Supply[] = [
+const mockedSupplies = [
   {
     id: 'maka',
     name: 'Mąka pszenna',
@@ -14,7 +11,7 @@ const mockedSupplies: Supply[] = [
     isVegan: true,
     isIngredient: true,
     defaultAmount: 1000
-  } as Ingredient,
+  },
   {
     id: 'cukier',
     name: 'Cukier',
@@ -23,7 +20,7 @@ const mockedSupplies: Supply[] = [
     isVegetarian: true,
     isVegan: true,
     isIngredient: true
-  } as Ingredient,
+  },
   {
     id: 'woda_butelkowana',
     name: 'Woda butelkowana',
@@ -40,32 +37,52 @@ const mockedSupplies: Supply[] = [
   }
 ];
 
-// Mock the supplies.json file to return mocked data instead of loading from file
-jest.doMock('../src/data/supplies.json', () => mockedSupplies);
+const supplyCatalog = new SupplyCatalog(mockedSupplies);
 
 // tests which verify correctness of supply module
 
-describe('supplyData functions', () => {
+describe('Supply', () => {
+  it('restores the stored identity and owns its state across imports and exports', () => {
+    const data = { id: 'legacy_id', name: 'Flour', category: 'zboża', unit: 'kg', isIngredient: true };
+    const supply = Supply.fromData(data);
+    data.name = 'changed';
+    const exported = supply.toData();
+    expect(exported).toEqual({ ...data, name: 'Flour', isVegetarian: false, isVegan: false });
+    Reflect.set(exported, 'name', 'another name');
+    expect(supply.name).toBe('Flour');
+  });
+});
+
+describe('SupplyCatalog', () => {
+  it('should validate across ingredient and non-ingredient views without changing the catalog', () => {
+    const draft = { name: 'Papier_toaletowy', unit: 'kg', category: 'inne',
+      isIngredient: true, isVegetarian: true, isVegan: true };
+    expect(supplyCatalog.createSupply(draft).errors.name).toContain('papier_toaletowy');
+    const result = supplyCatalog.createSupply({ ...draft, name: 'Ryż' });
+    expect(result.supply).toBeDefined();
+    expect(supplyCatalog.getById(result.supply!.id)).toBeUndefined();
+  });
+
   it('should protect catalog collections and entries from mutation', () => {
-    const supplies = getAllSupplies();
+    const supplies = supplyCatalog.all;
     const original = supplies[0];
     const originalLength = supplies.length;
     const originalName = original.name;
     expect(() => (supplies as Supply[]).pop()).toThrow();
     expect(Reflect.set(original, 'name', 'changed')).toBe(false);
-    expect(getAllSupplies()).toHaveLength(originalLength);
-    expect(getSupplyById(original.id)?.name).toBe(originalName);
+    expect(supplyCatalog.all).toHaveLength(originalLength);
+    expect(supplyCatalog.getById(original.id)?.name).toBe(originalName);
     expect(Object.isFrozen(supplies)).toBe(true);
     expect(Object.isFrozen(original)).toBe(true);
-    expect(Object.isFrozen(getIngredients())).toBe(true);
-    expect(Object.isFrozen(getNonIngredients())).toBe(true);
-    expect([...supplies].reverse()).not.toEqual(supplies);
-    expect(getAllSupplies()[0]).toBe(original);
+    expect(Object.isFrozen(supplyCatalog.ingredients)).toBe(true);
+    expect(Object.isFrozen(supplyCatalog.nonIngredients)).toBe(true);
+    expect([...supplies].reverse()[0]).not.toBe(original);
+    expect(supplyCatalog.all[0]).toBe(original);
   });
 
   describe('getAllSupplies', () => {
     it('should return all supplies', () => {
-      const supplies = getAllSupplies();
+      const supplies = supplyCatalog.all;
       expect(Array.isArray(supplies)).toBe(true);
       expect(supplies.length).toBeGreaterThan(0);
       supplies.forEach(supply => {
@@ -80,7 +97,7 @@ describe('supplyData functions', () => {
 
   describe('getIngredients', () => {
     it('should return only ingredients', () => {
-      const ingredients = getIngredients();
+      const ingredients = supplyCatalog.ingredients;
       expect(Array.isArray(ingredients)).toBe(true);
       ingredients.forEach(ingredient => {
         expect(ingredient.isIngredient).toBe(true);
@@ -93,7 +110,7 @@ describe('supplyData functions', () => {
 
   describe('getNonIngredients', () => {
     it('should return only non-ingredients', () => {
-      const nonIngredients = getNonIngredients();
+      const nonIngredients = supplyCatalog.nonIngredients;
       expect(Array.isArray(nonIngredients)).toBe(true);
       nonIngredients.forEach(supply => {
         expect(supply.isIngredient).toBe(false);
@@ -101,16 +118,16 @@ describe('supplyData functions', () => {
     });
   });
 
-  describe('getSupplyById', () => {
+  describe('supplyCatalog.getById', () => {
     it('should return supply by id if exists', () => {
-      const supply = getSupplyById('maka');
+      const supply = supplyCatalog.getById('maka');
       expect(supply).toBeDefined();
       expect(supply?.id).toBe('maka');
       expect(supply?.name).toBe('Mąka pszenna');
     });
 
     it('should return ingredient with ingredient properties when querying an ingredient', () => {
-      const supply = getSupplyById('maka');
+      const supply = supplyCatalog.getById('maka');
       expect(supply).toBeDefined();
       expect(supply?.isIngredient).toBe(true);
       expect(supply).toHaveProperty('isVegan');
@@ -118,33 +135,33 @@ describe('supplyData functions', () => {
     });
 
     it('should return undefined for non-existing id', () => {
-      const supply = getSupplyById('non-existing');
+      const supply = supplyCatalog.getById('non-existing');
       expect(supply).toBeUndefined();
     });
   });
 
-  describe('getIngredientById', () => {
+  describe('supplyCatalog.getIngredientById', () => {
     it('should return ingredient by id if it is an ingredient', () => {
-      const ingredient = getIngredientById('maka');
+      const ingredient = supplyCatalog.getIngredientById('maka');
       expect(ingredient).toBeDefined();
       expect(ingredient?.id).toBe('maka');
       expect(ingredient?.isIngredient).toBe(true);
     });
 
     it('should return undefined for non-existing id', () => {
-      const ingredient = getIngredientById('non-existing');
+      const ingredient = supplyCatalog.getIngredientById('non-existing');
       expect(ingredient).toBeUndefined();
     });
 
     it('should return undefined if id exists but is not an ingredient', () => {
-      const ingredient = getIngredientById('woda_butelkowana');
+      const ingredient = supplyCatalog.getIngredientById('woda_butelkowana');
       expect(ingredient).toBeUndefined();
     });
   });
 
-  describe('getSuppliesByType', () => {
+  describe('catalog views', () => {
     it('should return ingredients when showIngredients is true', () => {
-      const supplies = getSuppliesByType(true);
+      const supplies = supplyCatalog.ingredients;
       expect(Array.isArray(supplies)).toBe(true);
       supplies.forEach(supply => {
         expect(supply.isIngredient).toBe(true);
@@ -152,7 +169,7 @@ describe('supplyData functions', () => {
     });
 
     it('should return non-ingredients when showIngredients is false', () => {
-      const supplies = getSuppliesByType(false);
+      const supplies = supplyCatalog.nonIngredients;
       expect(Array.isArray(supplies)).toBe(true);
       supplies.forEach(supply => {
         expect(supply.isIngredient).toBe(false);
@@ -160,7 +177,7 @@ describe('supplyData functions', () => {
     });
 
     it('should have supplies that contain both ingredients and non-ingredients', () => {
-      const allSupplies = getAllSupplies();
+      const allSupplies = supplyCatalog.all;
       const hasIngredients = allSupplies.some(supply => supply.isIngredient);
       const hasNonIngredients = allSupplies.some(supply => !supply.isIngredient);
       expect(hasIngredients).toBe(true);

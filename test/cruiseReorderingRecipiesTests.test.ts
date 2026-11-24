@@ -17,9 +17,9 @@ describe('CruiseReorderingRecipiesTests', () => {
         ]
       });
 
-      const updatedCruise = cruise.moveRecipe({ assignment: cruise.getRecipeAssignments({ day: 1, slot: MealType.DINNER })[0], to: { day: 1, slot: MealType.DINNER } });
+      const updatedCruise = cruise.updateMealPlan(plan => plan.moveRecipe({ assignment: cruise.mealPlan.getRecipeAssignments({ day: 1, slot: MealType.DINNER })[0], to: { day: 1, slot: MealType.DINNER } }));
 
-      const recipes = updatedCruise.days[0].recipes;
+      const recipes = updatedCruise.mealPlan.days[0].recipes;
       expect(recipes).toHaveLength(3);
       expect(recipes[0].originalRecipeId).toBe('recipe-2');
       expect(recipes[1].originalRecipeId).toBe('recipe-3');

@@ -45,15 +45,14 @@ export const getStoredCruises = (): Cruise[] => {
 };
 
 import { Cruise } from '../src/model/cruise';
-import { IngredientAmount, Recipie, MealType } from '../src/model/recipe';
+import { Recipie, IngredientAmount, RecipieData, MealType } from '../src/model/recipe';
 import { Diet, CrewMember } from '../src/model/crew';
-import { createRecipie } from '../src/model/recipieData';
 
 export const makeCrewMembers = (count: number, diet: Diet = 'omnivore'): CrewMember[] =>
   Array.from({ length: count }, (_, i) => ({ id: `crew-${i}`, diet, name: `Zaloga ${i + 1}` }));
 
-export const createTestRecipe = (id: string, name: string, ingredients?: IngredientAmount[]): Recipie =>
-  createRecipie({
+export const createTestRecipe = (id: string, name: string, ingredients?: IngredientAmount[]): RecipieData =>
+  ({
     id,
     name,
     ingredients: ingredients ?? [{ id: 'test-ingredient', amount: 100 }],
@@ -68,7 +67,7 @@ export const createCruiseWithRecipes = (
   id: string,
   name: string,
   length: number,
-  recipesByDay: { [dayNumber: number]: { recipeId: string; recipeData?: Recipie; crewCount?: number; mealSlot?: MealType }[] },
+  recipesByDay: { [dayNumber: number]: { recipeId: string; recipeData?: RecipieData; crewCount?: number; mealSlot?: MealType }[] },
   crewMembers: CrewMember[] = makeCrewMembers(2)
 ): Cruise => {
   let cruise = Cruise.createNew(name, length, crewMembers);
@@ -76,12 +75,12 @@ export const createCruiseWithRecipes = (
   Object.entries(recipesByDay).forEach(([dayNum, recipes]) => {
 
     for (const r of recipes) {
-      cruise = cruise.addRecipe({
+      cruise = cruise.updateMealPlan(plan => plan.addRecipe({
         day: parseInt(dayNum),
-        recipe: r.recipeData ?? createTestRecipe(r.recipeId, r.recipeId),
+        recipe: Recipie.create(r.recipeData ?? createTestRecipe(r.recipeId, r.recipeId)),
         portions: r.crewCount ?? crewMembers.length,
         slot: r.mealSlot ?? MealType.DINNER,
-      });
+      }));
     }
   });
 

@@ -1,9 +1,9 @@
-import { AggregatedItem, AggregatedShoppingList } from '../src/model/shoppingList';
+import { AggregatedItem, AggregatedShoppingList } from '../src/model/cruise/shoppingList';
 import { Supply } from '../src/model/supply';
-import { generateShoppingListCSV } from '../src/model/shoppingList';
+import { generateShoppingListCSV } from '../src/model/cruise/shoppingList';
 
 describe('generateShoppingListCSV', () => {
-  const createMockSupply = (id: string, name: string, unit: string, category: string, description?: string): Supply => ({
+  const createMockSupply = (id: string, name: string, unit: string, category: string, description?: string): Supply => Supply.fromData({
     id,
     name,
     unit,

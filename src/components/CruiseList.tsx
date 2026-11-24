@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from 'react';
 import { cruiseRepository } from '../data/cruiseRepository';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { exportCruise, importCruiseFromFile } from '../utils/cruiseFileIO';
 import { Cruise } from '@/model/cruise';
 
 export default function CruiseList() {
@@ -26,7 +25,7 @@ export default function CruiseList() {
 
   const handleExport = (e: React.MouseEvent, cruise: Cruise) => {
     e.stopPropagation();
-    exportCruise(cruise);
+    cruiseRepository.exportToFile(cruise);
   };
 
   const handleImportClick = () => {
@@ -39,7 +38,7 @@ export default function CruiseList() {
     e.target.value = '';
     setIsImporting(true);
     try {
-      const cruise = await importCruiseFromFile(file);
+      const cruise = await cruiseRepository.importFromFile(file);
       const existing = await cruiseRepository.getById(cruise.id);
       if (existing) {
         const confirmed = window.confirm('Rejs o tej nazwie już istnieje. Nadpisać?');
@@ -134,10 +133,10 @@ export default function CruiseList() {
                   </div>
                 )}
                 <div>
-                  <span className="font-medium">Długość:</span> {cruise.days.length} dni
+                  <span className="font-medium">Długość:</span> {cruise.duration} dni
                 </div>
                 <div>
-                  <span className="font-medium">Załoga:</span> {cruise.crewMembers.length} osób
+                  <span className="font-medium">Załoga:</span> {cruise.crew.members.length} osób
                 </div>
               </div>
             </div>

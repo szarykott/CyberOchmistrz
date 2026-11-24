@@ -4,7 +4,7 @@ const output = process.env.MODEL_TEST_REPORT_DIR ?? 'reports/model-testing/mutat
 const config = {
   mutate: process.env.MODEL_TEST_MUTATE
     ? [process.env.MODEL_TEST_MUTATE]
-    : ['src/model/**/*.ts', 'src/utils/maxFlow.ts'],
+    : ['src/model/**/*.ts', 'src/data/cruiseRepository.ts'],
   testRunner: 'jest',
   jest: { configFile: 'jest.model.config.js' },
   coverageAnalysis: 'perTest',

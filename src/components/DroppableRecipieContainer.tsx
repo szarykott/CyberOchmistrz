@@ -3,9 +3,9 @@
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import DraggableRecipeItem from './DraggableRecipeItem';
-import { getMealCoverage, MealCoverage } from '../model/cruiseDietCoverage';
+import { getMealCoverage, MealCoverage } from '../model/cruise/mealPlan/cruiseDietCoverage';
 import { Diet, DIET_REGISTRY, CrewMember } from '../model/crew';
-import { supplyRepository } from '../data/supplyRepository';
+import { supplyCatalog } from '../data/supplyRepository';
 import { declineUnit } from '../utils/polishDeclension';
 import { CruiseDayRecipe, RecipeAssignment } from '@/model/cruise';
 import { MealType } from '@/model/recipe';
@@ -111,6 +111,7 @@ function SlotSection({
           slotRecipes,
           crewMembers,
           slot,
+          supplyCatalog,
         );
 
   return (
@@ -228,7 +229,7 @@ function CoverageDisplay({ coverage, isSlotEmpty }: CoverageDisplayProps) {
                 Wykluczone składniki:{' '}
                 {exclusionEntries
                   .map(([id, count]) => {
-                    const name = supplyRepository.getById(id)?.name ?? id;
+                    const name = supplyCatalog.getById(id)?.name ?? id;
                     return `${name} (${count} ${declineUnit('załogant', count)})`;
                   })
                   .join(', ')}

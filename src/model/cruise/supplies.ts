@@ -1,8 +1,43 @@
 import { produce } from 'immer';
-import type { AdditionalSupplyCategoryGroup, AdditionalSupplyItem } from '../supply';
-import { supplyRepository } from '../../data/supplyRepository';
-import type { Cruise } from './index';
+import type { Supply, SupplyCatalog } from '../supply';
 import { owned } from './internals';
+
+export interface CategoryGroup {
+  readonly category: string;
+  readonly supplies: Supply[];
+}
+
+export interface AdditionalSupplyItem {
+  readonly supply: Supply;
+  readonly amount: number;
+  readonly isPerPerson: boolean;
+  readonly isPerDay: boolean;
+}
+
+export interface AdditionalSupplyCategoryGroup {
+  readonly category: string;
+  readonly supplies: AdditionalSupplyItem[];
+}
+
+export function groupSuppliesByCategory(supplies: readonly Supply[]): CategoryGroup[] {
+  const grouped: {[key: string]: Supply[]} = {};
+
+  supplies.forEach(supply => {
+    const category = supply.category || 'inne';
+    if (!grouped[category]) {
+      grouped[category] = [];
+    }
+    grouped[category].push(supply);
+  });
+
+  // Convert to array and sort by category name for consistent display order
+  return Object.keys(grouped)
+    .sort()
+    .map(category => ({
+      category,
+      supplies: grouped[category]
+    }));
+}
 
 export interface CruiseSupply {
   readonly id: string;
@@ -17,14 +52,20 @@ function idsEqual(a: CruiseSupplyKey, b: CruiseSupplyKey): boolean {
   return a.id === b.id && a.isPerDay === b.isPerDay && a.isPerPerson === b.isPerPerson;
 }
 
-export class Supplies {
+export class CruiseSupplies {
   readonly #entries: readonly CruiseSupply[];
-  readonly #commit: (entries: readonly CruiseSupply[]) => Cruise;
 
-  constructor(entries: readonly CruiseSupply[], commit: (entries: readonly CruiseSupply[]) => Cruise) {
+  private constructor(entries: readonly CruiseSupply[]) {
     this.#entries = entries;
-    this.#commit = commit;
     Object.freeze(this);
+  }
+
+  static fromEntries(entries: readonly CruiseSupply[]): CruiseSupplies {
+    return new CruiseSupplies(owned(entries));
+  }
+
+  #with(entries: readonly CruiseSupply[]): CruiseSupplies {
+    return entries === this.#entries ? this : new CruiseSupplies(entries);
   }
 
   get entries(): readonly CruiseSupply[] {
@@ -33,10 +74,10 @@ export class Supplies {
 
   changeScaling({ supply, perPerson, perDay }: {
     supply: CruiseSupply; perPerson: boolean; perDay: boolean;
-  }): Cruise {
+  }): CruiseSupplies {
     const source = this.find(supply.id, supply.isPerPerson, supply.isPerDay);
-    if (!source || (source.isPerPerson === perPerson && source.isPerDay === perDay)) return this.#commit(this.#entries);
-    return this.#commit(produce(this.#entries, entries => {
+    if (!source || (source.isPerPerson === perPerson && source.isPerDay === perDay)) return this;
+    return this.#with(produce(this.#entries, entries => {
       const index = entries.findIndex(item => idsEqual(item, source));
       const [item] = entries.splice(index, 1);
       const target = entries.find(entry => idsEqual(entry, {
@@ -47,8 +88,8 @@ export class Supplies {
     }));
   }
 
-  upsert(supply: CruiseSupply): Cruise {
-    return this.#commit(produce(this.#entries, entries => {
+  upsert(supply: CruiseSupply): CruiseSupplies {
+    return this.#with(produce(this.#entries, entries => {
       const existingSupplyIndex = entries.findIndex((s) => idsEqual(s, supply));
       if (existingSupplyIndex >= 0) {
         entries[existingSupplyIndex].amount = supply.amount;
@@ -58,8 +99,8 @@ export class Supplies {
     }));
   }
 
-  add(supply: CruiseSupply): Cruise {
-    return this.#commit(produce(this.#entries, entries => {
+  add(supply: CruiseSupply): CruiseSupplies {
+    return this.#with(produce(this.#entries, entries => {
       const existingSupplyIndex = entries.findIndex((s) => idsEqual(s, supply));
       if (existingSupplyIndex >= 0) {
         entries[existingSupplyIndex].amount += supply.amount;
@@ -73,8 +114,8 @@ export class Supplies {
     supplyId: string,
     isPerPerson: boolean,
     isPerDay: boolean,
-  ): Cruise {
-    return this.#commit(produce(this.#entries, entries => {
+  ): CruiseSupplies {
+    return this.#with(produce(this.#entries, entries => {
       const existingSupplyIndex = entries.findIndex((s) => idsEqual(s, { id: supplyId, isPerDay, isPerPerson }));
       if (existingSupplyIndex >= 0) {
         entries.splice(existingSupplyIndex, 1);
@@ -104,11 +145,11 @@ export class Supplies {
     return item ? item.amount : null;
   }
 
-  groupByCategory(): AdditionalSupplyCategoryGroup[] {
+  groupByCategory(supplyCatalog: SupplyCatalog): AdditionalSupplyCategoryGroup[] {
     const grouped: { [key: string]: AdditionalSupplyItem[] } = {};
 
     this.#entries.forEach((item) => {
-      const supplyDetails = supplyRepository.getById(item.id);
+      const supplyDetails = supplyCatalog.getById(item.id);
       if (supplyDetails) {
         const category =
           supplyDetails.category ||

@@ -1,10 +1,10 @@
 import { Cruise } from '../src/model/cruise';
-import { cruiseRepository } from '../src/data/cruiseRepository';
+import { cruiseRepository, restoreCruise } from '../src/data/cruiseRepository';
 import { setupCruises, clearCruises, getStoredCruises, localStorageMock, makeCrewMembers } from './cruiseTestHarness';
 
 describe('cruiseRepository', () => {
   // createNew auto-generates id/dates; spread overrides pin a deterministic ID.
-  const makeCruise = (overrides?: Partial<Cruise>): Cruise => {
+  const makeCruise = (overrides?: Partial<Omit<ReturnType<Cruise['toJSON']>, 'days'>> & { days?: Cruise['mealPlan']['days'] }): Cruise => {
     const base = Cruise.createNew(
       overrides?.name ?? 'Test Cruise',
       overrides?.days?.length ?? 3,
@@ -12,7 +12,8 @@ describe('cruiseRepository', () => {
       overrides?.days?.slice(),
       overrides?.additionalSupplies?.slice(),
       '2030-06-01');
-    return Cruise.fromData({ ...base, id: 'test-cruise-1', ...overrides });
+    return restoreCruise({ ...base.toJSON(), id: overrides?.id ?? 'test-cruise-1',
+      dateCreated: overrides?.dateCreated ?? base.dateCreated, dateModified: overrides?.dateModified ?? base.dateModified });
   };
 
   const expectCruisesStored = (expectedCruises: Cruise[]) => {
@@ -36,16 +37,16 @@ describe('cruiseRepository', () => {
       const crew = makeCrewMembers(4);
       const cruise = Cruise.createNew('Test Cruise', 5, crew);
 
-      expect(cruise).toEqual(expect.objectContaining({
+      expect(cruise.toJSON()).toEqual(expect.objectContaining({
         name: 'Test Cruise',
         crewMembers: crew,
       }));
       expect(cruise.id).toBeDefined();
       expect(cruise.dateCreated).toBeDefined();
       expect(cruise.dateModified).toBeDefined();
-      expect(cruise.days).toHaveLength(5);
-      expect(cruise.days[0]).toEqual(expect.objectContaining({ dayNumber: 1, recipes: [] }));
-      expect(cruise.days[4].dayNumber).toBe(5);
+      expect(cruise.mealPlan.days).toHaveLength(5);
+      expect(cruise.mealPlan.days[0]).toEqual(expect.objectContaining({ dayNumber: 1, recipes: [] }));
+      expect(cruise.mealPlan.days[4].dayNumber).toBe(5);
     });
 
     it('should reject predefined days when their count differs from the duration', () => {

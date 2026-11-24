@@ -1,11 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { groupSuppliesByCategory } from '../model/supplyData';
-import { supplyRepository } from '../data/supplyRepository';
+import { groupSuppliesByCategory, type AdditionalSupplyCategoryGroup, type CategoryGroup } from '../model/cruise/supplies';
+import { supplyCatalog } from '../data/supplyRepository';
 import { declineUnit } from '../utils/polishDeclension';
 import IngredientAmountEditor from './IngredientAmountEditor';
-import { AdditionalSupplyCategoryGroup, CategoryGroup } from '@/model/supply';
 import { useCruise } from '@/app/rejsy/CruiseProvider';
 
 export default function CruiseSuppliesTab() {
@@ -18,7 +17,7 @@ export default function CruiseSuppliesTab() {
 
   // Load supplies directly, filtered by isIngredient flag
   useEffect(() => {
-    const allSupplies = supplyRepository.getSuppliesByType(showIngredients);
+    const allSupplies = showIngredients ? supplyCatalog.ingredients : supplyCatalog.nonIngredients;
 
     // Group supplies by category using the domain function
     const grouped = groupSuppliesByCategory(allSupplies);
@@ -30,21 +29,21 @@ export default function CruiseSuppliesTab() {
 
   // Group shopping list items by category using domain function
   useEffect(() => {
-    const groupedShoppingList = cruise.supplies.groupByCategory();
+    const groupedShoppingList = cruise.supplies.groupByCategory(supplyCatalog);
     setShoppingListByCategory(groupedShoppingList);
   }, [cruise]);
 
   const handleAddSupply = (supplyId: string) => {
-     void setCruise(current => current.supplies.add({ id: supplyId, amount: 1, isPerDay: false, isPerPerson: false }));
+     void setCruise(current => current.updateSupplies(supplies => supplies.add({ id: supplyId, amount: 1, isPerDay: false, isPerPerson: false })));
   };
 
   const handleUpdateAmount = (supplyId: string, amount: number, isPerPerson: boolean, isPerDay: boolean) => {
     if (amount < 0) return;
-    void setCruise(current => current.supplies.upsert({ id: supplyId, amount, isPerPerson, isPerDay }));
+    void setCruise(current => current.updateSupplies(supplies => supplies.upsert({ id: supplyId, amount, isPerPerson, isPerDay })));
   };
 
   const handleRemoveSupply = (supplyId: string, isPerPerson: boolean, isPerDay: boolean) => {
-    void setCruise(current => current.supplies.remove(supplyId, isPerPerson, isPerDay));
+    void setCruise(current => current.updateSupplies(supplies => supplies.remove(supplyId, isPerPerson, isPerDay)));
   };
 
   const handleUpdateFlags = (supplyId: string, oldIsPerPerson: boolean, oldIsPerDay: boolean, newIsPerPerson: boolean, newIsPerDay: boolean) => {
@@ -59,7 +58,7 @@ export default function CruiseSuppliesTab() {
         );
         if (!confirmed) return current;
       }
-      return current.supplies.changeScaling({ supply, perPerson: newIsPerPerson, perDay: newIsPerDay });
+      return current.updateSupplies(supplies => supplies.changeScaling({ supply, perPerson: newIsPerPerson, perDay: newIsPerDay }));
     });
   };
 

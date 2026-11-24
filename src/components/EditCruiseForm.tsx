@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { CrewMember } from '../model/crew';
+import type { Crew } from '../model/crew';
 import { useRouter } from 'next/navigation';
 import CrewEditor from './CrewEditor';
 import { useCruise } from '@/app/rejsy/CruiseProvider';
@@ -14,14 +14,14 @@ export default function EditCruiseForm() {
   const [formData, setFormData] = useState<{
     name: string;
     length: number;
-    crewMembers: CrewMember[];
+    crew: Crew;
     startDate: string;
-  }>({
-    name: cruise.organization.name,
-    length: cruise.organization.duration,
-    crewMembers: cruise.crew.members.slice(),
-    startDate: cruise.organization.startDate || '',
-  });
+  }>(() => ({
+    name: cruise.name,
+    length: cruise.duration,
+    crew: cruise.crew.forEditing(),
+    startDate: cruise.startDate || '',
+  }));
   const [errors, setErrors] = useState({
     name: '',
     length: '',
@@ -45,8 +45,8 @@ export default function EditCruiseForm() {
     }
   };
 
-  const handleCrewChange = (crewMembers: CrewMember[]) => {
-    setFormData((prev) => ({ ...prev, crewMembers }));
+  const handleCrewChange = (crew: Crew) => {
+    setFormData((prev) => ({ ...prev, crew }));
     if (errors.crewMembers) {
       setErrors((prev) => ({ ...prev, crewMembers: '' }));
     }
@@ -60,7 +60,7 @@ export default function EditCruiseForm() {
     if (formData.length < 1) {
       newErrors.length = 'Długość rejsu musi być większa niż 0';
     }
-    if (formData.crewMembers.length < 1) {
+    if (formData.crew.members.length < 1) {
       newErrors.crewMembers = 'Dodaj przynajmniej jednego załoganta';
     }
     setErrors(newErrors);
@@ -75,8 +75,8 @@ export default function EditCruiseForm() {
     }
 
     if (
-      formData.length < cruise.organization.duration &&
-      cruise.organization.willLengthReductionRemoveRecipes(formData.length)
+      formData.length < cruise.duration &&
+      cruise.willLengthReductionRemoveRecipes(formData.length)
     ) {
       const confirmed = confirm(
         'Zmniejszenie długości rejsu spowoduje usunięcie przepisów z usuniętych dni. Czy chcesz kontynuować?',
@@ -89,13 +89,13 @@ export default function EditCruiseForm() {
     setIsSaving(true);
     try {
       await setCruise(current => {
-        const updated = current.organization
+        const updated = current
           .rename(formData.name)
-          .organization.changeDuration(formData.length)
-          .crew.replace(formData.crewMembers);
+          .changeDuration(formData.length)
+          .replaceCrew(formData.crew);
         return formData.startDate
-          ? updated.organization.changeStartDate(formData.startDate)
-          : updated.organization.clearStartDate();
+          ? updated.changeStartDate(formData.startDate)
+          : updated.clearStartDate();
       });
     } catch {
       return;
@@ -149,7 +149,7 @@ export default function EditCruiseForm() {
         <div>
           <label className="form-label">Załoga</label>
           <CrewEditor
-            members={formData.crewMembers}
+            crew={formData.crew}
             onChange={handleCrewChange}
           />
           {errors.crewMembers && (

@@ -1,3 +1,5 @@
+import { Crew } from "../src/model/crew";
+import { Recipie } from "../src/model/recipe";
 import { MealType } from '../src/model/recipe';
 import { makeCrewMembers, createTestRecipe } from './cruiseTestHarness';
 import { Cruise } from '@/model/cruise';
@@ -7,12 +9,12 @@ describe('cruise edit functionality', () => {
     it('should update cruise name, length, and crew', () => {
       const cruise = Cruise.createNew('Test Cruise', 5, makeCrewMembers(4));
 
-      const updatedCruise = cruise.rename('Updated Cruise').changeDuration(7).replaceCrew(makeCrewMembers(6));
+      const updatedCruise = cruise.rename('Updated Cruise').changeDuration(7).replaceCrew(Crew.fromMembers(makeCrewMembers(6)));
 
       expect(updatedCruise?.name).toBe('Updated Cruise');
-      expect(updatedCruise?.days.length).toBe(7);
-      expect(updatedCruise?.crewMembers).toHaveLength(6);
-      expect(updatedCruise?.days).toHaveLength(7);
+      expect(updatedCruise?.mealPlan.days.length).toBe(7);
+      expect(updatedCruise?.crew.members).toHaveLength(6);
+      expect(updatedCruise?.mealPlan.days).toHaveLength(7);
     });
 
     it('should add days when length increases', () => {
@@ -20,10 +22,10 @@ describe('cruise edit functionality', () => {
 
       const updatedCruise = cruise.changeDuration(5);
 
-      expect(updatedCruise?.days).toHaveLength(5);
-      expect(updatedCruise?.days[3].dayNumber).toBe(4);
-      expect(updatedCruise?.days[4].dayNumber).toBe(5);
-      expect(updatedCruise?.days[4].recipes).toEqual([]);
+      expect(updatedCruise?.mealPlan.days).toHaveLength(5);
+      expect(updatedCruise?.mealPlan.days[3].dayNumber).toBe(4);
+      expect(updatedCruise?.mealPlan.days[4].dayNumber).toBe(5);
+      expect(updatedCruise?.mealPlan.days[4].recipes).toEqual([]);
     });
 
     it('should remove days when length decreases', () => {
@@ -31,8 +33,8 @@ describe('cruise edit functionality', () => {
 
       const updatedCruise = cruise.changeDuration(3);
 
-      expect(updatedCruise?.days).toHaveLength(3);
-      expect(updatedCruise?.days[2].dayNumber).toBe(3);
+      expect(updatedCruise?.mealPlan.days).toHaveLength(3);
+      expect(updatedCruise?.mealPlan.days[2].dayNumber).toBe(3);
     });
   });
 
@@ -59,8 +61,8 @@ describe('cruise edit functionality', () => {
       const recipe2 = createTestRecipe('recipe2', 'Recipe 2');
 
       cruise = cruise
-        .addRecipe({ day: 4, recipe: recipe1, portions: 4, slot: MealType.DINNER })
-        .addRecipe({ day: 5, recipe: recipe2, portions: 4, slot: MealType.DINNER });
+        .updateMealPlan(plan => plan.addRecipe({ day: 4, recipe: Recipie.create(recipe1), portions: 4, slot: MealType.DINNER }))
+        .updateMealPlan(plan => plan.addRecipe({ day: 5, recipe: Recipie.create(recipe2), portions: 4, slot: MealType.DINNER }));
 
       const result = cruise.willLengthReductionRemoveRecipes(3);
       expect(result).toBe(true);

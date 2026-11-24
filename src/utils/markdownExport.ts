@@ -1,4 +1,4 @@
-import { supplyRepository } from '../data/supplyRepository';
+import { supplyCatalog } from '../data/supplyRepository';
 import { declineUnit } from './polishDeclension';
 import { recipieRepository } from '../data/recipieRepository';
 import { CruiseDayRecipe, Cruise } from '../model/cruise';
@@ -21,7 +21,7 @@ function formatDayHeader(startDate: string | undefined, dayNumber: number): stri
 }
 
 function formatIngredient(id: string, totalAmount: number): string {
-  const supply = supplyRepository.getById(id);
+  const supply = supplyCatalog.getById(id);
   if (supply) {
     return `- ${totalAmount} ${declineUnit(supply.unit, totalAmount)} ${supply.name}`;
   }
@@ -31,15 +31,15 @@ function formatIngredient(id: string, totalAmount: number): string {
 function generateSingleRecipeLines(group: CruiseDayRecipe[]): string[] {
   const recipe = group[0];
   const lines: string[] = [];
-  lines.push(`### ${recipe.recipeData.name}.`);
+  lines.push(`### ${recipe.recipe.name}.`);
   lines.push("");
   lines.push("Składniki:");
-  for (const ing of recipe.recipeData.ingredients) {
-    lines.push(formatIngredient(ing.id, ing.amount * recipe.crewCount));
+  for (const ing of recipe.recipe.ingredientsForPortions(recipe.crewCount)) {
+    lines.push(formatIngredient(ing.id, ing.totalAmount));
   }
   lines.push("");
   lines.push("Sposób przygotowania:");
-  recipe.recipeData.instructions.forEach((step, i) => {
+  recipe.recipe.instructions.forEach((step, i) => {
     lines.push(`${i + 1}. ${step}`);
   });
   return lines;
@@ -48,30 +48,33 @@ function generateSingleRecipeLines(group: CruiseDayRecipe[]): string[] {
 function generateVariantRecipeLines(group: CruiseDayRecipe[], key: string): string[] {
   const lines: string[] = [];
   const sortedGroup = [...group].sort((a, b) => b.crewCount - a.crewCount);
+  const scaledIngredients = sortedGroup.map(recipe =>
+    recipe.recipe.ingredientsForPortions(recipe.crewCount)
+  );
 
   const seenNames = new Set<string>();
   const uniqueNames: string[] = [];
   for (const r of sortedGroup) {
-    if (!seenNames.has(r.recipeData.name)) {
-      seenNames.add(r.recipeData.name);
-      uniqueNames.push(r.recipeData.name);
+    if (!seenNames.has(r.recipe.name)) {
+      seenNames.add(r.recipe.name);
+      uniqueNames.push(r.recipe.name);
     }
   }
   lines.push(`### ${uniqueNames.join(' / ')}.`);
   lines.push("");
 
-  const commonIds = sortedGroup[0].recipeData.ingredients
+  const commonIds = scaledIngredients[0]
     .map(ing => ing.id)
-    .filter(id => sortedGroup.every(r => r.recipeData.ingredients.some(ing => ing.id === id)));
+    .filter(id => scaledIngredients.every(ingredients => ingredients.some(ing => ing.id === id)));
 
-  for (const recipe of sortedGroup) {
-    const distinctIngs = recipe.recipeData.ingredients.filter(ing => !commonIds.includes(ing.id));
-    lines.push(`Składniki specyficzne dla wariantu (${recipe.recipeData.name}, ${recipe.crewCount} ${declineUnit('osoba', recipe.crewCount)}):`);
+  for (const [index, recipe] of sortedGroup.entries()) {
+    const distinctIngs = scaledIngredients[index].filter(ing => !commonIds.includes(ing.id));
+    lines.push(`Składniki specyficzne dla wariantu (${recipe.recipe.name}, ${recipe.crewCount} ${declineUnit('osoba', recipe.crewCount)}):`);
     if (distinctIngs.length === 0) {
       lines.push("- Ten wariant przepisu korzysta tylko ze wspólnych składników");
     } else {
       for (const ing of distinctIngs) {
-        lines.push(formatIngredient(ing.id, ing.amount * recipe.crewCount));
+        lines.push(formatIngredient(ing.id, ing.totalAmount));
       }
     }
     lines.push("");
@@ -79,9 +82,8 @@ function generateVariantRecipeLines(group: CruiseDayRecipe[], key: string): stri
 
   lines.push("Wspólne składniki:");
   for (const id of commonIds) {
-    const totalAmount = sortedGroup.reduce((sum, r) => {
-      const ing = r.recipeData.ingredients.find(i => i.id === id);
-      return sum + (ing ? ing.amount * r.crewCount : 0);
+    const totalAmount = scaledIngredients.reduce((sum, ingredients) => {
+      return sum + (ingredients.find(ingredient => ingredient.id === id)?.totalAmount ?? 0);
     }, 0);
     lines.push(formatIngredient(id, totalAmount));
   }
@@ -91,7 +93,7 @@ function generateVariantRecipeLines(group: CruiseDayRecipe[], key: string): stri
   lines.push("");
 
   const catalogRecipe = recipieRepository.getById(key);
-  const instructions = catalogRecipe ? catalogRecipe.instructions : sortedGroup[0].recipeData.instructions;
+  const instructions = catalogRecipe ? catalogRecipe.instructions : sortedGroup[0].recipe.instructions;
   lines.push("Sposób przygotowania:");
   instructions.forEach((step, i) => {
     lines.push(`${i + 1}. ${step}`);
@@ -103,7 +105,7 @@ function generateVariantRecipeLines(group: CruiseDayRecipe[], key: string): stri
 export function generateMarkdown(cruise: Cruise): string {
   const dayBlocks: string[] = [];
 
-  for (const day of cruise.days) {
+  for (const day of cruise.mealPlan.days) {
     const blocks: string[] = [];
     blocks.push(formatDayHeader(cruise.startDate, day.dayNumber));
 

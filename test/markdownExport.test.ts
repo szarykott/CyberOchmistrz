@@ -1,8 +1,9 @@
+import { supplyCatalog } from '../src/data/supplyRepository';
 import { generateMarkdown } from '../src/utils/markdownExport';
 import { Diet, CrewMember } from '../src/model/crew';
 import { makeCrewMembers } from './cruiseTestHarness';
 import { CruiseDayRecipe, CruiseDay, Cruise } from '../src/model/cruise';
-import { Recipie, MealType } from '../src/model/recipe';
+import { Recipie, RecipieData, MealType } from '../src/model/recipe';
 
 jest.mock('../src/data/recipies.json', () => [
   { id: 'catalog-base', name: 'Zupa bazowa', ingredients: [{ id: 'bread', amount: 1 }], description: '', mealType: ['obiad'], difficulty: 1, instructions: ['Krok katalogowy 1', 'Krok katalogowy 2'] },
@@ -14,7 +15,7 @@ jest.mock('../src/data/supplies.json', () => [
   { id: 'bread', name: 'Chleb', unit: 'sztuki', isIngredient: true, category: 'pieczywo', isVegetarian: true, isVegan: true },
 ]);
 
-const makeRecipe = (id: string, name: string, ingredientIds: string[], instructions: string[]): Recipie => ({
+const makeRecipe = (id: string, name: string, ingredientIds: string[], instructions: string[]): RecipieData => ({
   id,
   name,
   ingredients: ingredientIds.map(iid => ({ id: iid, amount: 1 })),
@@ -24,9 +25,9 @@ const makeRecipe = (id: string, name: string, ingredientIds: string[], instructi
   instructions,
 });
 
-const makeDayRecipe = (recipe: Recipie, crewCount: number, mealSlot: MealType = MealType.DINNER): CruiseDayRecipe => ({
+const makeDayRecipe = (recipe: RecipieData, crewCount: number, mealSlot: MealType = MealType.DINNER): CruiseDayRecipe => ({
   originalRecipeId: recipe.id,
-  recipeData: recipe,
+  recipe: Recipie.fromData(recipe),
   crewCount,
   mealSlot,
 });
@@ -160,7 +161,7 @@ describe('generateMarkdown', () => {
 
   // 12
   it('ingredient amounts — multiplied by crewCount, unit declined correctly', () => {
-    const recipe: Recipie = {
+    const recipe: RecipieData = {
       id: 'r1',
       name: 'Kotlet',
       // 5 eggs + 100g meat per person, crewCount=2 → 10 eggs, 200g meat
@@ -178,19 +179,39 @@ describe('generateMarkdown', () => {
     expect(result).toContain('- 200 gramów Wołowina');
   });
 
+  it('should share portion scaling with shopping while preserving zero-portion export', () => {
+    // A quarter egg per person gives half an egg for two portions and one egg for four.
+    const recipe = {
+      ...makeRecipe('fractional', 'Danie', ['egg'], []),
+      ingredients: [{ id: 'egg', amount: 0.25 }],
+    };
+    const zeroPortions = makeRecipe('zero', 'Bez porcji', ['meat'], []);
+    const cruise = makeCruise([], [{ dayNumber: 1, recipes: [
+      makeDayRecipe(recipe, 2, MealType.BREAKFAST),
+      makeDayRecipe(recipe, 4, MealType.DINNER),
+      makeDayRecipe(zeroPortions, 0, MealType.SUPPER),
+    ] }]);
+    const menu = generateMarkdown(cruise);
+    expect(menu).toMatch(/- 0\.5 \S+ Jajko/);
+    expect(menu).toMatch(/- 1 \S+ Jajko/);
+    expect(menu).toMatch(/- 0 \S+ Wołowina/);
+    const purchases = Object.values(cruise.shoppingList.aggregate(supplyCatalog)).flat();
+    expect(purchases).toEqual([expect.objectContaining({ amount: 1.5, supply: expect.objectContaining({ id: 'egg' }) })]);
+  });
+
   // 13
   it('two versions same slot same originalRecipeId — grouped, instructions from catalog, note shown', () => {
     // v1: bigger crew (5), v2: smaller crew (3) — both share 'catalog-base'
     // Both have 'egg' (common), v1 also has 'meat' (variant-specific), v2 also has 'bread' (variant-specific)
     const v1: CruiseDayRecipe = {
       originalRecipeId: 'catalog-base',
-      recipeData: makeRecipe('v1', 'Zupa z mięsem', ['meat', 'egg'], ['Krok v1 — powinien być zignorowany']),
+      recipe: Recipie.fromData(makeRecipe('v1', 'Zupa z mięsem', ['meat', 'egg'], ['Krok v1 — powinien być zignorowany'])),
       crewCount: 5,
       mealSlot: MealType.DINNER,
     };
     const v2: CruiseDayRecipe = {
       originalRecipeId: 'catalog-base',
-      recipeData: makeRecipe('v2', 'Zupa zwykła', ['bread', 'egg'], ['Krok v2 — powinien być zignorowany']),
+      recipe: Recipie.fromData(makeRecipe('v2', 'Zupa zwykła', ['bread', 'egg'], ['Krok v2 — powinien być zignorowany'])),
       crewCount: 3,
       mealSlot: MealType.DINNER,
     };
@@ -226,25 +247,25 @@ describe('generateMarkdown', () => {
   it('same originalRecipeId in different slots — two separate groups, no cross-slot merging', () => {
     const v1: CruiseDayRecipe = {
       originalRecipeId: 'catalog-base',
-      recipeData: makeRecipe('d1', 'Obiad wersja A', ['meat'], ['krok']),
+      recipe: Recipie.fromData(makeRecipe('d1', 'Obiad wersja A', ['meat'], ['krok'])),
       crewCount: 5,
       mealSlot: MealType.DINNER,
     };
     const v2: CruiseDayRecipe = {
       originalRecipeId: 'catalog-base',
-      recipeData: makeRecipe('d2', 'Obiad wersja B', ['bread'], ['krok']),
+      recipe: Recipie.fromData(makeRecipe('d2', 'Obiad wersja B', ['bread'], ['krok'])),
       crewCount: 3,
       mealSlot: MealType.DINNER,
     };
     const v3: CruiseDayRecipe = {
       originalRecipeId: 'catalog-base',
-      recipeData: makeRecipe('s1', 'Kolacja wersja A', ['meat'], ['krok']),
+      recipe: Recipie.fromData(makeRecipe('s1', 'Kolacja wersja A', ['meat'], ['krok'])),
       crewCount: 4,
       mealSlot: MealType.SUPPER,
     };
     const v4: CruiseDayRecipe = {
       originalRecipeId: 'catalog-base',
-      recipeData: makeRecipe('s2', 'Kolacja wersja B', ['bread'], ['krok']),
+      recipe: Recipie.fromData(makeRecipe('s2', 'Kolacja wersja B', ['bread'], ['krok'])),
       crewCount: 2,
       mealSlot: MealType.SUPPER,
     };
@@ -267,21 +288,21 @@ describe('generateMarkdown', () => {
     const v1: CruiseDayRecipe = {
       originalRecipeId: 'catalog-base',
       // crewCount=3, same name as v2 — should appear once in header (deduped)
-      recipeData: makeRecipe('t1', 'Zupa', ['bread'], ['krok']),
+      recipe: Recipie.fromData(makeRecipe('t1', 'Zupa', ['bread'], ['krok'])),
       crewCount: 3,
       mealSlot: MealType.DINNER,
     };
     const v2: CruiseDayRecipe = {
       originalRecipeId: 'catalog-base',
       // crewCount=7, highest — comes first
-      recipeData: makeRecipe('t2', 'Zupa', ['egg'], ['krok']),
+      recipe: Recipie.fromData(makeRecipe('t2', 'Zupa', ['egg'], ['krok'])),
       crewCount: 7,
       mealSlot: MealType.DINNER,
     };
     const v3: CruiseDayRecipe = {
       originalRecipeId: 'catalog-base',
       // crewCount=5, unique name
-      recipeData: makeRecipe('t3', 'Zupa specjalna', ['meat'], ['krok']),
+      recipe: Recipie.fromData(makeRecipe('t3', 'Zupa specjalna', ['meat'], ['krok'])),
       crewCount: 5,
       mealSlot: MealType.DINNER,
     };
@@ -302,13 +323,13 @@ describe('generateMarkdown', () => {
     const v1: CruiseDayRecipe = {
       originalRecipeId: 'no-such-recipe',
       // crewCount=5 — highest, will be sortedGroup[0] → its instructions used as fallback
-      recipeData: makeRecipe('f1', 'Zupa A', ['meat'], ['Fallback 1', 'Fallback 2']),
+      recipe: Recipie.fromData(makeRecipe('f1', 'Zupa A', ['meat'], ['Fallback 1', 'Fallback 2'])),
       crewCount: 5,
       mealSlot: MealType.DINNER,
     };
     const v2: CruiseDayRecipe = {
       originalRecipeId: 'no-such-recipe',
-      recipeData: makeRecipe('f2', 'Zupa B', ['bread'], ['Ignorowany krok']),
+      recipe: Recipie.fromData(makeRecipe('f2', 'Zupa B', ['bread'], ['Ignorowany krok'])),
       crewCount: 3,
       mealSlot: MealType.DINNER,
     };

@@ -1,56 +1,52 @@
-import type { CrewMember } from "../crew";
+import type { Crew } from "../crew";
 import { Supply } from "../supply";
-import { supplyRepository } from '../../data/supplyRepository';
-import type { CruiseDay } from "./mealPlan";
-import type { CruiseSupply } from "./supplies";
+import type { SupplyCatalog } from '../supply';
+import type { MealPlan } from "./mealPlan";
+import type { CruiseSupplies } from "./supplies";
 
 export interface AggregatedShoppingList {
-  [category: string]: AggregatedItem[];
+  readonly [category: string]: readonly AggregatedItem[];
 }
 
 export interface AggregatedItem {
-  supply: Supply;
-  amount: number; // total amount needed
-  sources: AmountSource[];
+  readonly supply: Supply;
+  readonly amount: number; // total amount needed
+  readonly sources: readonly AmountSource[];
 }
 
 export type AmountSource = RecipeAmountSource | AdditionalSupplyAmountSource;
 
 export class RecipeAmountSource {
   readonly type = 'recipe' as const;
-  amount: number; // base amount before crew scaling
-  recipeName?: string;
-  dayNumber?: number;
-  crewCount: number;
+  readonly amount: number; // base amount before crew scaling
+  readonly recipeName?: string;
+  readonly dayNumber?: number;
+  readonly crewCount: number;
 
   constructor(amount: number, recipeName?: string, dayNumber?: number, crewCount: number = 1) {
     this.amount = amount;
     this.recipeName = recipeName;
     this.dayNumber = dayNumber;
     this.crewCount = crewCount;
+    Object.freeze(this);
   }
 }
 
 export class AdditionalSupplyAmountSource {
   readonly type = 'additional' as const;
-  amount: number; // base amount before scaling by flags
-  isPerPerson: boolean;
-  isPerDay: boolean;
+  readonly amount: number; // base amount before scaling by flags
+  readonly isPerPerson: boolean;
+  readonly isPerDay: boolean;
 
   constructor(amount: number, isPerPerson: boolean, isPerDay: boolean) {
     this.amount = amount;
     this.isPerPerson = isPerPerson;
     this.isPerDay = isPerDay;
+    Object.freeze(this);
   }
 }
 
-interface ShoppingListInput {
-  readonly days: readonly CruiseDay[];
-  readonly crewMembers: readonly CrewMember[];
-  readonly additionalSupplies: readonly CruiseSupply[];
-}
-
-export function aggregateShoppingList(cruise: ShoppingListInput): AggregatedShoppingList {
+function aggregateShoppingList(mealPlan: MealPlan, crew: Crew, supplies: CruiseSupplies, supplyCatalog: SupplyCatalog): AggregatedShoppingList {
   // Map to hold all items with their total amounts and sources
   const itemsMap: Map<string, { supply: Supply, amount: number, sources: AmountSource[] }> = new Map();
 
@@ -77,7 +73,7 @@ export function aggregateShoppingList(cruise: ShoppingListInput): AggregatedShop
   };
 
   // Helper function to create invalid supply placeholder
-  const createInvalidSupply = (id: string, isIngredient: boolean): Supply => ({
+  const createInvalidSupply = (id: string, isIngredient: boolean): Supply => Supply.fromData({
     id,
     name: `Nieprawidłowy produkt: ${id}`,
     unit: 'sztuki',
@@ -86,46 +82,39 @@ export function aggregateShoppingList(cruise: ShoppingListInput): AggregatedShop
   });
 
   // 1. Add ingredients from recipes in the meal plan, scaled by each recipe's crewCount
-  cruise.days.forEach(day => {
+  mealPlan.days.forEach(day => {
     day.recipes.forEach(recipe => {
-      // Use the recipe data stored in the cruise if available, otherwise fall back to the original recipe
       if (recipe.crewCount === 0) return;
-      const recipeData = recipe.recipeData;
-      if (recipeData) {
-        recipeData.ingredients.forEach(ingredientAmount => {
-          let ingredient = supplyRepository.getById(ingredientAmount.id);
-          if (!ingredient) {
-            ingredient = createInvalidSupply(ingredientAmount.id, true);
-          }
-          // Adjust amount based on crew size for each recipe
-          const scaledAmount = ingredientAmount.amount * recipe.crewCount;
-          const source = new RecipeAmountSource(ingredientAmount.amount, recipeData.name, day.dayNumber, recipe.crewCount);
+      recipe.recipe.ingredientsForPortions(recipe.crewCount).forEach(ingredientAmount => {
+        let ingredient = supplyCatalog.getById(ingredientAmount.id);
+        if (!ingredient) {
+          ingredient = createInvalidSupply(ingredientAmount.id, true);
+        }
+        // Preserve the per-person amount in the explanation of the scaled total
+        const source = new RecipeAmountSource(ingredientAmount.amount, recipe.recipe.name, day.dayNumber, recipe.crewCount);
 
-          addToItemsMap(itemsMap, ingredient, scaledAmount, source);
-        });
-      }
+        addToItemsMap(itemsMap, ingredient, ingredientAmount.totalAmount, source);
+      });
     });
   });
 
   // 2. Add items from additional supplies
-  if (cruise.additionalSupplies) {
-    cruise.additionalSupplies.forEach(item => {
-      let supply = supplyRepository.getById(item.id);
-      if (!supply) {
-        supply = createInvalidSupply(item.id, false);
-      }
-      // Calculate scaled amount based on flags
-      const crewMultiplier = item.isPerPerson ? cruise.crewMembers.length : 1;
-      const dayMultiplier = item.isPerDay ? cruise.days.length : 1;
-      const scaledAmount = item.amount * crewMultiplier * dayMultiplier;
-      const source = new AdditionalSupplyAmountSource(item.amount, item.isPerPerson, item.isPerDay);
+  supplies.entries.forEach(item => {
+    let supply = supplyCatalog.getById(item.id);
+    if (!supply) {
+      supply = createInvalidSupply(item.id, false);
+    }
+    // Calculate scaled amount based on flags
+    const crewMultiplier = item.isPerPerson ? crew.members.length : 1;
+    const dayMultiplier = item.isPerDay ? mealPlan.duration : 1;
+    const scaledAmount = item.amount * crewMultiplier * dayMultiplier;
+    const source = new AdditionalSupplyAmountSource(item.amount, item.isPerPerson, item.isPerDay);
 
-      addToItemsMap(itemsMap, supply, scaledAmount, source);
-    });
-  }
+    addToItemsMap(itemsMap, supply, scaledAmount, source);
+  });
 
   // Group items by category
-  const groupedItems: AggregatedShoppingList = {};
+  const groupedItems: Record<string, AggregatedItem[]> = {};
 
   itemsMap.forEach((item) => {
     const category = item.supply.category || (item.supply.isIngredient ? 'inne' : 'Pozostałe produkty');
@@ -134,27 +123,30 @@ export function aggregateShoppingList(cruise: ShoppingListInput): AggregatedShop
       groupedItems[category] = [];
     }
 
-    groupedItems[category].push(item as AggregatedItem);
+    Object.freeze(item.sources);
+    groupedItems[category].push(Object.freeze(item));
   });
 
   // Sort items in each category alphabetically
   Object.keys(groupedItems).forEach(category => {
     groupedItems[category].sort((a, b) => a.supply.name.localeCompare(b.supply.name, 'pl'));
+    Object.freeze(groupedItems[category]);
   });
 
-  return groupedItems;
+  return Object.freeze(groupedItems);
 }
 
 export class ShoppingList {
-  readonly #input: ShoppingListInput;
-
-  constructor(input: ShoppingListInput) {
-    this.#input = input;
+  constructor(
+    private readonly mealPlan: MealPlan,
+    private readonly crew: Crew,
+    private readonly supplies: CruiseSupplies,
+  ) {
     Object.freeze(this);
   }
 
-  aggregate(): AggregatedShoppingList {
-    return aggregateShoppingList(this.#input);
+  aggregate(supplyCatalog: SupplyCatalog): AggregatedShoppingList {
+    return aggregateShoppingList(this.mealPlan, this.crew, this.supplies, supplyCatalog);
   }
 }
 

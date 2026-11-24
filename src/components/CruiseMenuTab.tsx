@@ -67,7 +67,7 @@ export default function CruiseMenuTab() {
   };
 
   const handleRemoveRecipe = (assignment: RecipeAssignment) => {
-    void setCruise(current => current.mealPlan.removeRecipe({ assignment }));
+    void setCruise(current => current.updateMealPlan(plan => plan.removeRecipe({ assignment })));
   };
 
   const handleEditIngredients = (assignment: RecipeAssignment) => {
@@ -75,7 +75,7 @@ export default function CruiseMenuTab() {
   };
 
   const handleCrewCountChange = (assignment: RecipeAssignment, portions: number) => {
-    void setCruise(current => current.mealPlan.changePortions({ assignment, portions }));
+    void setCruise(current => current.updateMealPlan(plan => plan.changePortions({ assignment, portions })));
   };
 
   const handleSaveRecipeEdits = (
@@ -83,7 +83,17 @@ export default function CruiseMenuTab() {
     ingredients: Array<{ id: string; amount: number }>,
   ) => {
     if (!editingRecipe) return;
-    return setCruise(current => current.mealPlan.editAssignedRecipe({ assignment: editingRecipe, changes: { name, ingredients } }));
+    const previous = editingRecipe.recipe;
+    const sameIngredients = ingredients.length === previous.ingredients.length && ingredients.every((item, i) =>
+      item.id === previous.ingredients[i].id && item.amount === previous.ingredients[i].amount
+    );
+    return setCruise(current => current.updateMealPlan(plan => plan.editAssignedRecipe({
+      assignment: editingRecipe,
+      changes: {
+        name: name === previous.name ? undefined : name,
+        ingredients: sameIngredients ? undefined : ingredients,
+      },
+    })));
   };
 
   const closeIngredientEditor = () => {
@@ -151,10 +161,10 @@ export default function CruiseMenuTab() {
       if (!fullRecipe) return;
 
       const destination = { day: targetDay, slot: targetSlot };
-      void setCruise(current => current.mealPlan.addRecipe({
+      void setCruise(current => current.updateMealPlan(plan => plan.addRecipe({
         ...destination, recipe: fullRecipe,
-        portions: Math.max(1, current.crewMembers.length),
-      }));
+        portions: Math.max(1, current.crew.members.length),
+      })));
       return;
     }
 
@@ -178,22 +188,22 @@ export default function CruiseMenuTab() {
       targetDayNumber = overData.dayNumber;
       targetMealSlot = overData.mealSlot;
       before = overData.assignment;
-      if (activeData.dayNumber === targetDayNumber && sourceMealSlot === targetMealSlot) {
-        const assignments = cruise.mealPlan.getRecipeAssignments({ day: targetDayNumber!, slot: targetMealSlot! });
-        const sourceIndex = assignments.findIndex(item => item.key === assignment.key);
-        const targetIndex = assignments.findIndex(item => item.key === before!.key);
-        if (sourceIndex >= 0 && sourceIndex < targetIndex) {
-          before = assignments[targetIndex + 1];
-        }
-      }
     } else {
       return;
     }
 
     if (targetDayNumber === undefined || !targetMealSlot) return;
     const destination = { day: targetDayNumber, slot: targetMealSlot };
-    void setCruise(current => current.mealPlan.moveRecipe({
-      assignment, to: destination, before,
+    void setCruise(current => current.updateMealPlan(plan => {
+      let next = before;
+      const target = before;
+      if (target) {
+        const assignments = plan.getRecipeAssignments(destination);
+        const sourceIndex = assignments.findIndex(item => item.key === assignment.key);
+        const targetIndex = assignments.findIndex(item => item.key === target.key);
+        if (sourceIndex >= 0 && sourceIndex < targetIndex) next = assignments[targetIndex + 1];
+      }
+      return plan.moveRecipe({ assignment, to: destination, before: next });
     }));
   };
 
@@ -287,7 +297,7 @@ export default function CruiseMenuTab() {
                 key={day.dayNumber}
                 dayNumber={day.dayNumber}
                 recipes={day.recipes}
-                crewMembers={cruise.crewMembers}
+                crewMembers={cruise.crew.members}
                 isSelected={selectedDay === day.dayNumber}
                 isOver={overId === `day-list-${day.dayNumber}`}
                 onClick={() => handleDaySelect(day.dayNumber)}
@@ -315,7 +325,7 @@ export default function CruiseMenuTab() {
                   dayNumber={selectedDay}
                   recipes={selectedDayData.recipes}
                   getAssignments={(slot) => cruise.mealPlan.getRecipeAssignments({ day: selectedDay, slot })}
-                  crewMembers={cruise.crewMembers}
+                  crewMembers={cruise.crew.members}
                   onEditIngredients={handleEditIngredients}
                   onRemoveRecipe={handleRemoveRecipe}
                   onCrewCountChange={handleCrewCountChange}

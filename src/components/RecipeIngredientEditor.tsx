@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { supplyRepository } from '../data/supplyRepository';
+import { supplyCatalog } from '../data/supplyRepository';
 import IngredientListEditor from './IngredientListEditor';
 import { Recipie } from '@/model/recipe';
 
@@ -19,7 +19,7 @@ export default function RecipeIngredientEditor({
   onSave,
   onClose
 }: RecipeIngredientEditorProps) {
-  const allIngredients = supplyRepository.getIngredients();
+  const allIngredients = supplyCatalog.ingredients;
 
   const [draftName, setDraftName] = useState(recipe.name);
   const [draftIngredients, setDraftIngredients] = useState<Array<{ id: string; amount: number }>>(

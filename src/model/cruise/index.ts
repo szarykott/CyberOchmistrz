@@ -1,259 +1,157 @@
-import type { CrewMember } from "../crew";
-import type { Recipie, MealType } from "../recipe";
-import type { AdditionalSupplyCategoryGroup } from "../supply";
-import { newId, owned } from "./internals";
-import { Crew } from "./crew";
-import { createDays, MealPlan, ownDays } from "./mealPlan";
-import type { CruiseDay, RecipeAssignment } from "./mealPlan";
-import { Organization } from "./organization";
-import { restoreCruiseData } from "./restoration";
+import { Crew, type CrewMember } from "../crew";
+import { newId } from "./internals";
+import { MealPlan, type CruiseDayData, type CruiseDay } from "./mealPlan";
 import { ShoppingList } from "./shoppingList";
-import { Supplies } from "./supplies";
-import type { CruiseSupply } from "./supplies";
+import { CruiseSupplies, type CruiseSupply } from "./supplies";
 
 export type { CruiseDay, CruiseDayRecipe, RecipeAssignment } from "./mealPlan";
+export type { CruiseDayData } from "./mealPlan";
 export type { CruiseSupply } from "./supplies";
 
-type CruiseChanges = Partial<Pick<Cruise, 'name' | 'startDate' | 'crewMembers' | 'days' | 'additionalSupplies'>>;
+export interface CruiseData {
+  readonly id: string;
+  readonly name: string;
+  readonly dateCreated: string;
+  readonly dateModified: string;
+  readonly crewMembers: readonly CrewMember[];
+  readonly days: readonly CruiseDayData[];
+  readonly additionalSupplies?: readonly CruiseSupply[];
+  readonly startDate?: string;
+}
+
+type CruiseChanges = Partial<Pick<Cruise, 'name' | 'startDate' | 'crew' | 'mealPlan' | 'supplies'>>;
 
 export class Cruise {
-  readonly #organization: Organization;
-  readonly #crew: Crew;
-  readonly #mealPlan: MealPlan;
-  readonly #supplies: Supplies;
-  readonly #shoppingList: ShoppingList;
-
-  public readonly id: string;
-  public readonly name: string;
-  public readonly dateCreated: string;
-  public readonly dateModified: string;
-  public readonly crewMembers: readonly CrewMember[];
-  public readonly days: readonly CruiseDay[];
-  public readonly additionalSupplies: readonly CruiseSupply[];
-  public readonly startDate?: string; // YYYY-MM-DD format
+  public readonly shoppingList: ShoppingList;
 
   private constructor(
-    id: string,
-    name: string,
-    dateCreated: string,
-    dateModified: string,
-    crewMembers: readonly CrewMember[],
-    days: readonly CruiseDay[],
-    additionalSupplies: readonly CruiseSupply[],
-    startDate?: string,
+    public readonly id: string,
+    public readonly name: string,
+    public readonly dateCreated: string,
+    public readonly dateModified: string,
+    public readonly crew: Crew,
+    public readonly mealPlan: MealPlan,
+    public readonly supplies: CruiseSupplies,
+    public readonly startDate?: string, // YYYY-MM-DD format
   ) {
-    this.#mealPlan = new MealPlan(id, days, days => this.#with({ days }));
-    this.#organization = new Organization({ name, startDate }, this.#mealPlan, changes => this.#with(changes));
-    this.#crew = new Crew(crewMembers, members => this.#with({ crewMembers: members }));
-    this.#supplies = new Supplies(additionalSupplies, entries => this.#with({ additionalSupplies: entries }));
-
-    this.id = id;
-    this.name = this.#organization.name;
-    this.dateCreated = dateCreated;
-    this.dateModified = dateModified;
-    this.crewMembers = this.#crew.members;
-    this.days = this.#mealPlan.days;
-    this.additionalSupplies = this.#supplies.entries;
-    this.startDate = this.#organization.startDate;
-    this.#shoppingList = new ShoppingList({
-      days: this.#mealPlan.days,
-      crewMembers: this.#crew.members,
-      additionalSupplies: this.#supplies.entries,
-    });
+    this.shoppingList = new ShoppingList(mealPlan, crew, supplies);
     Object.freeze(this);
   }
-
-  get organization(): Organization {
-    return this.#organization;
-  }
-
-  get crew(): Crew {
-    return this.#crew;
-  }
-
-  get mealPlan(): MealPlan {
-    return this.#mealPlan;
-  }
-
-  get supplies(): Supplies {
-    return this.#supplies;
-  }
-
-  get shoppingList(): ShoppingList {
-    return this.#shoppingList;
-  }
-
-  // cruise details
 
   public static createNew(
     name: string,
     length: number,
-    crewMembers: CrewMember[],
-    predefinedDays?: CruiseDay[],
-    predefinedAdditionalSupplies?: CruiseSupply[],
+    crew: Crew | readonly CrewMember[],
+    predefinedDays?: readonly CruiseDay[],
+    predefinedAdditionalSupplies?: readonly CruiseSupply[],
     startDate?: string,
   ): Cruise {
-    const days = createDays(length, predefinedDays);
+    const id = newId();
     const now = new Date().toISOString();
 
     return new Cruise(
-      newId(),
+      id,
       name,
       now,
       now,
-      owned(crewMembers),
-      ownDays(days),
-      owned(predefinedAdditionalSupplies ?? []),
+      crew instanceof Crew ? crew : Crew.fromMembers(crew),
+      MealPlan.create(id, length, predefinedDays),
+      CruiseSupplies.fromEntries(predefinedAdditionalSupplies ?? []),
       startDate,
     );
   }
 
-  public static fromData(input: unknown): Cruise {
-    const data = restoreCruiseData(input);
+  public static fromData(data: CruiseData): Cruise {
     return new Cruise(
       data.id,
       data.name,
       data.dateCreated,
       data.dateModified,
-      data.crewMembers,
-      data.days,
-      data.additionalSupplies,
+      Crew.fromMembers(data.crewMembers),
+      MealPlan.fromData(data.id, data.days),
+      CruiseSupplies.fromEntries(data.additionalSupplies ?? []),
       data.startDate,
     );
   }
 
+  public toJSON(): CruiseData {
+    return {
+      id: this.id,
+      name: this.name,
+      dateCreated: this.dateCreated,
+      dateModified: this.dateModified,
+      crewMembers: this.crew.members,
+      days: this.mealPlan.toJSON(),
+      additionalSupplies: this.supplies.entries,
+      ...(this.startDate === undefined ? {} : { startDate: this.startDate }),
+    };
+  }
+
   #with(modifiedValues: CruiseChanges): Cruise {
     const name = modifiedValues.name ?? this.name;
-    const crewMembers = modifiedValues.crewMembers ?? this.crewMembers;
-    const days = modifiedValues.days ?? this.days;
-    const additionalSupplies = modifiedValues.additionalSupplies ?? this.additionalSupplies;
+    const crew = modifiedValues.crew ?? this.crew;
+    const mealPlan = modifiedValues.mealPlan ?? this.mealPlan;
+    const supplies = modifiedValues.supplies ?? this.supplies;
     const startDate = 'startDate' in modifiedValues ? modifiedValues.startDate : this.startDate;
 
-    // No-op: nothing changed, so keep the same instance. immer returns the same
-    // array reference when a producer mutates nothing, so this catches no-op
-    // updates (e.g. out-of-bounds reorder). Avoids a needless dateModified bump,
-    // lets React skip re-render and saveCruise skip a redundant write.
+    // No-op: nothing changed, so keep the same instance and dateModified.
     if (
       name === this.name &&
-      crewMembers === this.crewMembers &&
-      days === this.days &&
-      additionalSupplies === this.additionalSupplies &&
+      crew === this.crew &&
+      mealPlan === this.mealPlan &&
+      supplies === this.supplies &&
       startDate === this.startDate
     ) {
       return this;
     }
 
-    const now = new Date().toISOString()
-
     return new Cruise(
       this.id,
       name,
       this.dateCreated,
-      now,
-      crewMembers,
-      days,
-      additionalSupplies,
+      new Date().toISOString(),
+      crew,
+      mealPlan,
+      supplies,
       startDate,
-    )
+    );
   }
 
   public rename(name: string): Cruise {
-    return this.organization.rename(name);
+    return this.#with({ name });
+  }
+
+  public get duration(): number {
+    return this.mealPlan.duration;
   }
 
   public changeDuration(length: number): Cruise {
-    return this.organization.changeDuration(length);
-  }
-
-  public replaceCrew(crewMembers: readonly CrewMember[]): Cruise {
-    return this.crew.replace(crewMembers);
-  }
-
-  public changeStartDate(startDate: string): Cruise {
-    return this.organization.changeStartDate(startDate);
-  }
-
-  public clearStartDate(): Cruise {
-    return this.organization.clearStartDate();
-  }
-
-  public getRecipeAssignments({ day, slot }: { day: number; slot: MealType }): readonly RecipeAssignment[] {
-    return this.mealPlan.getRecipeAssignments({ day, slot });
-  }
-
-  public addRecipe({ day, slot, recipe, portions }: {
-    day: number; slot: MealType; recipe: Recipie; portions: number;
-  }): Cruise {
-    return this.mealPlan.addRecipe({ day, slot, recipe, portions });
-  }
-
-  public editAssignedRecipe({ assignment, changes }: {
-    assignment: RecipeAssignment; changes: { name?: string; ingredients?: Recipie['ingredients'] };
-  }): Cruise {
-    return this.mealPlan.editAssignedRecipe({ assignment, changes });
-  }
-
-  public changePortions({ assignment, portions }: { assignment: RecipeAssignment; portions: number }): Cruise {
-    return this.mealPlan.changePortions({ assignment, portions });
-  }
-
-  public moveRecipe({ assignment, to, before }: {
-    assignment: RecipeAssignment; to: { day: number; slot: MealType }; before?: RecipeAssignment;
-  }): Cruise {
-    return this.mealPlan.moveRecipe({ assignment, to, before });
-  }
-
-  public changeAdditionalSupplyScaling({ supply, perPerson, perDay }: {
-    supply: CruiseSupply; perPerson: boolean; perDay: boolean;
-  }): Cruise {
-    return this.supplies.changeScaling({ supply, perPerson, perDay });
-  }
-
-  // receipes
-
-  public removeRecipe({ assignment }: { assignment: RecipeAssignment }): Cruise {
-    return this.mealPlan.removeRecipe({ assignment });
+    return this.updateMealPlan(plan => plan.changeDuration(length));
   }
 
   public willLengthReductionRemoveRecipes(newLength: number): boolean {
-    return this.organization.willLengthReductionRemoveRecipes(newLength);
+    return this.mealPlan.willLengthReductionRemoveRecipes(newLength);
   }
 
-  // additional supplies
-
-  public upsertAdditionalSupply(supply: CruiseSupply): Cruise {
-    return this.supplies.upsert(supply);
+  public replaceCrew(crew: Crew): Cruise {
+    return this.crew.equals(crew) ? this : this.#with({ crew });
   }
 
-  public addAdditionalSupply(supply: CruiseSupply): Cruise {
-    return this.supplies.add(supply);
+  public changeStartDate(startDate: string): Cruise {
+    return this.#with({ startDate });
   }
 
-  public removeAdditionalSupply(
-    supplyId: string,
-    isPerPerson: boolean,
-    isPerDay: boolean,
-  ): Cruise {
-    return this.supplies.remove(supplyId, isPerPerson, isPerDay);
+  public clearStartDate(): Cruise {
+    return this.#with({ startDate: undefined });
   }
 
-  public hasAdditionalSupply(
-    supplyId: string,
-    isPerPerson: boolean,
-    isPerDay: boolean,
-  ): boolean {
-    return this.supplies.has(supplyId, isPerPerson, isPerDay);
+  public updateMealPlan(transform: (current: MealPlan) => MealPlan): Cruise {
+    const mealPlan = transform(this.mealPlan);
+    if (!mealPlan.belongsTo(this.id)) throw new Error('Plan posiłków należy do innego rejsu');
+    return this.#with({ mealPlan });
   }
 
-  public getAdditionalSupplyAmount(
-    supplyId: string,
-    isPerPerson: boolean,
-    isPerDay: boolean,
-  ): number | null {
-    return this.supplies.amountFor(supplyId, isPerPerson, isPerDay);
-  }
-
-  public groupAdditionalSuppliesByCategory(): AdditionalSupplyCategoryGroup[] {
-    return this.supplies.groupByCategory();
+  public updateSupplies(transform: (current: CruiseSupplies) => CruiseSupplies): Cruise {
+    return this.#with({ supplies: transform(this.supplies) });
   }
 }

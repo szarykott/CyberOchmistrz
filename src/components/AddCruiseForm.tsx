@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { cruiseRepository } from '../data/cruiseRepository';
 import { useRouter } from 'next/navigation';
-import { CrewMember } from '../model/crew';
+import { Crew } from '../model/crew';
 import { Cruise } from '../model/cruise'
 import CrewEditor from './CrewEditor';
 
@@ -14,14 +14,14 @@ export default function AddCruiseForm() {
   const [formData, setFormData] = useState<{
     name: string;
     length: number;
-    crewMembers: CrewMember[];
+    crew: Crew;
     startDate: string;
-  }>({
+  }>(() => ({
     name: '',
     length: 1,
-    crewMembers: [],
+    crew: Crew.fromMembers([]),
     startDate: '',
-  });
+  }));
   const [errors, setErrors] = useState({
     name: '',
     length: '',
@@ -45,8 +45,8 @@ export default function AddCruiseForm() {
     }
   };
 
-  const handleCrewChange = (crewMembers: CrewMember[]) => {
-    setFormData((prev) => ({ ...prev, crewMembers }));
+  const handleCrewChange = (crew: Crew) => {
+    setFormData((prev) => ({ ...prev, crew }));
     if (errors.crewMembers) {
       setErrors((prev) => ({ ...prev, crewMembers: '' }));
     }
@@ -68,7 +68,7 @@ export default function AddCruiseForm() {
       newErrors.length = 'Długość rejsu musi być większa niż 0';
     }
 
-    if (formData.crewMembers.length < 1) {
+    if (formData.crew.members.length < 1) {
       newErrors.crewMembers = 'Dodaj przynajmniej jednego załoganta';
     }
 
@@ -86,7 +86,7 @@ export default function AddCruiseForm() {
     const newCruise = Cruise.createNew(
       formData.name,
       formData.length,
-      formData.crewMembers,
+      formData.crew,
       undefined,
       undefined,
       formData.startDate || undefined,
@@ -147,7 +147,7 @@ export default function AddCruiseForm() {
         <div>
           <label className="form-label">Załoga</label>
           <CrewEditor
-            members={formData.crewMembers}
+            crew={formData.crew}
             onChange={handleCrewChange}
           />
           {errors.crewMembers && (

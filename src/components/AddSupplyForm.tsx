@@ -1,10 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { SupplyValidationErrors } from '@/types';
-import { validateNewSupply, isSupplyDataValid } from '@/model/supplyData';
-import { supplyRepository } from '@/data/supplyRepository';
-import { Supply, Ingredient } from '@/model/supply';
+import { supplyCatalog } from '@/data/supplyRepository';
+import { INGREDIENT_CATEGORIES } from '@/model/supply';
 
 export default function AddSupplyForm() {
   const [isIngredient, setIsIngredient] = useState<boolean>(false);
@@ -25,18 +24,12 @@ export default function AddSupplyForm() {
     general: ''
   });
 
-  // Available categories for ingredients
-  const ingredientCategories = [
-    'nabiał', 'mięso', 'warzywa', 'owoce', 'pieczywo', 'zboża',
-    'przyprawy', 'tłuszcze', 'napoje', 'środki czystości', 'inne'
-  ];
-
   // Available categories for supplies (can be any string)
   const supplyCategories = [
     'sprzęt', 'chemia', 'inne'
   ];
 
-  const availableCategories = isIngredient ? ingredientCategories : supplyCategories;
+  const availableCategories = isIngredient ? INGREDIENT_CATEGORIES : supplyCategories;
 
   const handleTypeChange = (newIsIngredient: boolean) => {
     setIsIngredient(newIsIngredient);
@@ -46,74 +39,36 @@ export default function AddSupplyForm() {
       setIsVegan(false);
     }
     // Reset category if it's not valid for the new type
-    if (!availableCategories.includes(category)) {
+    const nextCategories: readonly string[] = newIsIngredient ? INGREDIENT_CATEGORIES : supplyCategories;
+    if (!nextCategories.includes(category)) {
       setCategory('');
     }
   };
 
   const generateJson = () => {
-    // Clear any previous errors
-    setErrors({
-      name: '',
-      unit: '',
-      category: '',
-      isVegetarian: '',
-      isVegan: '',
-      general: ''
-    });
-
-    const supplyData = {
-      name: name.trim(),
-      unit: unit.trim(),
-      category: category.trim(),
-      description: description.trim() || undefined,
-      defaultAmount: defaultAmount ? parseFloat(defaultAmount) : undefined,
-      isIngredient,
-      ...(isIngredient && { isVegetarian, isVegan })
-    };
-
     // Validate the data
-    const validationErrors = validateNewSupply(supplyData, supplyRepository.getAll());
-    setErrors(validationErrors);
+    const result = supplyCatalog.createSupply({
+      name, unit, category, description, defaultAmount, isIngredient, isVegetarian, isVegan
+    });
+    setErrors(result.errors);
 
-    if (!isSupplyDataValid(validationErrors)) {
-      return null;
-    }
-
-    // Generate ID from name (slug format)
-    const id = name.trim()
-      .toLowerCase()
-      .replace(/\s+/g, '-')
-      .replace(/[^\w-]/g, '');
-
-    const supply: Supply | Ingredient = {
-      id,
-      name: name.trim(),
-      unit: unit.trim(),
-      category: category.trim(),
-      description: description.trim() || undefined,
-      defaultAmount: defaultAmount ? parseFloat(defaultAmount) : undefined,
-      isIngredient,
-      ...(isIngredient && { isVegetarian, isVegan })
-    };
-
-    const jsonString = JSON.stringify(supply, null, 2);
-    setJsonOutput(jsonString);
-    return supply;
+    const json = result.supply ? JSON.stringify(result.supply.toData(), null, 2) : '';
+    setJsonOutput(json);
+    return json;
   };
 
   const copyToClipboard = () => {
-    const supply = generateJson();
-    if (supply) {
-      navigator.clipboard.writeText(jsonOutput);
+    const json = generateJson();
+    if (json) {
+      navigator.clipboard.writeText(json);
       alert('Supply JSON copied to clipboard!');
     }
   };
 
   const downloadJson = () => {
-    const supply = generateJson();
-    if (supply) {
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(jsonOutput);
+    const json = generateJson();
+    if (json) {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(json);
       const downloadAnchorNode = document.createElement('a');
       downloadAnchorNode.setAttribute("href", dataStr);
       downloadAnchorNode.setAttribute("download", `${name.trim() || 'new-supply'}.json`);

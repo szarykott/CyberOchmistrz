@@ -1,8 +1,9 @@
 'use client';
 
+import { supplyCatalog } from '../data/supplyRepository';
+
 import { useDroppable } from '@dnd-kit/core';
-import { recipieRepository } from '../data/recipieRepository';
-import { getMealCoverage, MealCoverage } from '../model/cruiseDietCoverage';
+import { getMealCoverage, MealCoverage } from '../model/cruise/mealPlan/cruiseDietCoverage';
 import { CrewMember } from '../model/crew'
 import { CruiseDayRecipe } from '@/model/cruise';
 import { MealType } from '@/model/recipe';
@@ -98,6 +99,7 @@ export default function DroppableDayItem({
                 slotRecipes,
                 crewMembers,
                 slot,
+                supplyCatalog,
               );
               const dot = mealStatusDot(
                 coverage,
@@ -129,14 +131,12 @@ export default function DroppableDayItem({
       {dayRecipes > 0 && (
         <ul className="mt-2 text-xs md:text-sm text-muted">
           {recipes.slice(0, 2).map((recipe, index) => {
-            const recipeData =
-              recipe.recipeData || recipieRepository.getById(recipe.originalRecipeId);
             return (
               <li
                 key={`${recipe.originalRecipeId}-${index}`}
                 className="truncate"
               >
-                • {recipeData ? recipeData.name : `Przepis #${recipe.originalRecipeId}`}
+                • {recipe.recipe.name}
               </li>
             );
           })}

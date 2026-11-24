@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { cruiseRepository } from '../data/cruiseRepository';
 import { useRouter } from 'next/navigation';
 import { DIET_REGISTRY, CrewMember } from '../model/crew';
-import { supplyRepository } from '../data/supplyRepository';
+import { supplyCatalog } from '../data/supplyRepository';
 import { useCruise } from '@/app/rejsy/CruiseProvider';
 
 export default function CruiseInfoTab() {
@@ -32,9 +32,9 @@ export default function CruiseInfoTab() {
     return new Date(dateString).toLocaleDateString();
   };
 
-  const vegCount = cruise.crewMembers.filter((m) => m.diet === 'vegetarian').length;
-  const veganCount = cruise.crewMembers.filter((m) => m.diet === 'vegan').length;
-  const omnivoreRemainder = cruise.crewMembers.filter((m) => m.diet === 'omnivore').length;
+  const vegCount = cruise.crew.members.filter((m) => m.diet === 'vegetarian').length;
+  const veganCount = cruise.crew.members.filter((m) => m.diet === 'vegan').length;
+  const omnivoreRemainder = cruise.crew.members.filter((m) => m.diet === 'omnivore').length;
 
   return (
     <div className="content-padding">
@@ -64,14 +64,14 @@ export default function CruiseInfoTab() {
             )}
             <div className="info-detail-row">
               <span className="info-detail-label">Długość rejsu:</span>
-              <span>{cruise.days.length} dni</span>
+              <span>{cruise.duration} dni</span>
             </div>
             <div className="info-detail-row">
               <span className="info-detail-label">Załoga:</span>
-              <span>{cruise.crewMembers.length} osób</span>
+              <span>{cruise.crew.members.length} osób</span>
             </div>
           </div>
-          {cruise.crewMembers.length > 0 && (
+          {cruise.crew.members.length > 0 && (
             <div className="mt-2 flex flex-col gap-1">
               {omnivoreRemainder > 0 && (
                 <span className="text-sm">• {omnivoreRemainder} wszystkożernych</span>
@@ -93,7 +93,7 @@ export default function CruiseInfoTab() {
               </button>
               {showMembers && (
                 <ul className="mt-1 pl-2 space-y-0.5">
-                  {cruise.crewMembers.map((m, i) => (
+                  {cruise.crew.members.map((m, i) => (
                     <li key={m.id || i} className="text-sm text-muted">
                       {describeMember(m)}
                     </li>
@@ -130,7 +130,7 @@ function describeMember(member: CrewMember): string {
   }
 
   const exclusionNames = member.excludedSupplies
-    .map(id => supplyRepository.getById(id)?.name ?? id)
+    .map(id => supplyCatalog.getById(id)?.name ?? id)
     .join(', ');
 
   return `${name} — ${dietLabel}, wykluczone składniki: ${exclusionNames}`;

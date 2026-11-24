@@ -71,35 +71,29 @@ CyberOchmistrz/
 │   ├── components/            # All React components (see below)
 │   │   └── AGENTS.md          # Component conventions for AI agents
 │   ├── data/                  # Repositories and static JSON catalogs
-│   │   ├── cruiseRepository.ts # Asynchronous cruise access backed by localStorage
+│   │   ├── cruiseRepository.ts # Cruise storage, JSON validation and file import/export
 │   │   ├── recipieRepository.ts # Read-only recipe catalog
-│   │   ├── supplyRepository.ts # Read-only supply and ingredient catalog
+│   │   ├── supplyRepository.ts # Loads the immutable SupplyCatalog from static JSON
 │   │   ├── recipies.json      # ~20 recipes with ingredients, instructions
 │   │   └── supplies.json      # ~100 supplies with units, categories, veg flags
 │   ├── model/                 # Domain logic (no UI)
 │   │   ├── AGENTS.md          # Model layer rules for AI agents
 │   │   ├── cruise/            # Immutable cruise aggregate and domain operations
-│   │   │   ├── index.ts       # Public entry point, identity, timestamps, commits
-│   │   │   ├── organization.ts # Name, start date, and duration operations
-│   │   │   ├── crew.ts        # Crew membership, diets, and exclusions
-│   │   │   ├── mealPlan.ts    # Cruise days, recipe assignment snapshots and handles
+│   │   │   ├── index.ts       # Cruise details, child installation, and JSON export
+│   │   │   ├── mealPlan/
+│   │   │   │   ├── cruiseDietCoverage.ts # Meal and day diet coverage
+│   │   │   │   ├── maxFlow.ts # Crew allocation for diet coverage
+│   │   │   │   └── index.ts  # Cruise days, recipe assignment snapshots and handles
 │   │   │   ├── supplies.ts    # Additional supply amounts, scaling, and grouping
 │   │   │   ├── shoppingList.ts # Derived shopping list and CSV generation
-│   │   │   ├── restoration.ts # Validation of serialized cruise data
 │   │   │   └── internals.ts   # Shared immutable copying and ID generation
-│   │   ├── cruiseDietCoverage.ts  # Max-flow diet coverage (Dinic's algorithm), smart crewCount defaults
-│   │   ├── crew.ts            # Crew member types, diet registry, and draft edits
-│   │   ├── recipieData.ts     # Recipe creation, ingredient resolution, veg checks
-│   │   ├── recipe.ts          # Recipe and ingredient quantity types
-│   │   ├── shoppingList.ts    # Compatibility exports for shopping list helpers
-│   │   ├── supply.ts          # Supply and ingredient types
-│   │   └── supplyData.ts      # Supply grouping and validation
+│   │   ├── crew.ts            # Immutable crew, member operations by ID, and diet registry
+│   │   ├── recipe.ts          # Immutable recipe, quantity scaling, and diet checks
+│   │   └── supply.ts          # Immutable Supply and catalog queries
 │   ├── types/                 # TypeScript interfaces and enums
 │   │   └── index.ts           # Shared UI types
 │   └── utils/
-│       ├── cruiseFileIO.ts      # Cruise JSON export (download) and import (parse file)
 │       ├── markdownExport.ts    # Markdown export for cruise menu (days, slots, recipes)
-│       ├── maxFlow.ts           # Dinic's max-flow algorithm used by diet coverage
 │       └── polishDeclension.ts  # Polish grammatical number for units
 ├── test/                      # Jest test suite
 │   ├── AGENTS.md              # Test conventions for AI agents
@@ -160,7 +154,7 @@ npm run test:model -- --engine properties --seconds 60
 npm run test:model -- --engine fuzz --seconds 60
 npm run test:model -- --engine mutation --seconds 120
 npm run test:model -- --seconds 3600               # All three engines, up to one hour EACH
-npm run test:model -- --engine mutation --seconds 120 --mutate src/model/cruise/mealPlan.ts
+npm run test:model -- --engine mutation --seconds 120 --mutate src/model/cruise/mealPlan/index.ts
 npm run test:model -- --replay reports/model-testing/<run>/<finding>.json
 npm run test:model:cli                            # Lifecycle, timeout, finding and replay checks
 npm run test:model -- --help
@@ -233,10 +227,10 @@ mutation sandboxes are ignored by Git.
 
 No state library (Redux, Zustand, etc.). Pattern:
 
-- **Static data:** Recipe and supply repositories read bundled JSON and return domain objects synchronously. Supply queries share an owned, immutable catalog and read-only views.
+- **Static data:** Recipe and supply repositories read bundled JSON and return data synchronously. Recipes are immutable domain objects. Supply queries share an owned, immutable catalog and read-only views. Supply creation validates fields and checks the generated ID against the catalog before exporting JSON.
 - **Persistent data:** `cruiseRepository` exposes asynchronous queries and writes. It uses `localStorage` in the browser and restores immutable `Cruise` instances before returning them.
-- **Restoration:** file imports and stored data are parsed as `unknown` and validated by `Cruise.fromData` before use or persistence. Existing cruise IDs and recipe snapshots are preserved; new cruise IDs are UUIDs.
-- **Cruise state:** `Cruise` exposes operations through `organization`, `crew`, `mealPlan`, and `supplies`. Changes return a full immutable cruise snapshot and no-op calls return the original instance. Assignments own recipe snapshots and expose handles for edits, moves, and removal. `shoppingList.aggregate()` derives quantities from the current cruise. The cruise provider applies changes in order and publishes each changed instance after a successful save.
+- **Restoration:** file imports and stored data are parsed as `unknown` and validated by `restoreCruise` in the cruise repository before use or persistence. Existing cruise IDs and recipe snapshots are preserved; new cruise IDs are UUIDs.
+- **Cruise state:** `Cruise` owns details and installs edits to `MealPlan`, `CruiseSupplies`, and `Crew`. Child operations return their own immutable values. Effective edits share untouched branches, and no-op edits return the original cruise. Forms apply drafts on save. Assignments expose immutable recipe snapshots and use identity handles for edits, moves, and removal. Cruise JSON serialization preserves the existing storage format. `shoppingList.aggregate(supplyCatalog)` derives quantities from the current cruise. The cruise provider applies changes in order and publishes each changed instance after a successful save.
 - **Component state:** React `useState` + `useEffect` handles local state and hydration.
 
 ---

@@ -1,16 +1,16 @@
 'use client';
 
 import { useState } from 'react';
-import { CrewMember } from '../model/crew';
-import { addCrewMember, Diet, DIET_REGISTRY, removeCrewMember, updateCrewMember } from '../model/crew';
-import { supplyRepository } from '../data/supplyRepository';
+import { DIET_REGISTRY, type Crew, type CrewMember, type Diet } from '../model/crew';
+import { supplyCatalog } from '../data/supplyRepository';
 
 interface CrewEditorProps {
-  members: CrewMember[];
-  onChange: (members: CrewMember[]) => void;
+  crew: Crew;
+  onChange: (crew: Crew) => void;
 }
 
-export default function CrewEditor({ members, onChange }: CrewEditorProps) {
+export default function CrewEditor({ crew, onChange }: CrewEditorProps) {
+  const { members } = crew;
   const [expandedMembers, setExpandedMembers] = useState<Set<string>>(new Set());
 
   const toggleMember = (id: string) => {
@@ -25,23 +25,11 @@ export default function CrewEditor({ members, onChange }: CrewEditorProps) {
     });
   };
 
-  const removeMember = (index: number) => {
-    onChange(removeCrewMember(members, index));
-  };
-
   const addMember = () => {
-    const next = addCrewMember(members);
-    const id = next[next.length - 1].id;
+    const next = crew.addMember();
+    const id = next.members[next.members.length - 1].id;
     onChange(next);
     setExpandedMembers(prev => new Set(prev).add(id));
-  };
-
-  const handleNameChange = (index: number, name: string) => {
-    onChange(updateCrewMember(members, index, { name }));
-  };
-
-  const handleDietChange = (index: number, diet: Diet) => {
-    onChange(updateCrewMember(members, index, { diet }));
   };
 
   const vegCount = members.filter((m) => m.diet === 'vegetarian').length;
@@ -56,12 +44,11 @@ export default function CrewEditor({ members, onChange }: CrewEditorProps) {
             Bez załogi nigdzie nie popłyniemy. Zaciągnij kogoś za pomocą przycisku poniżej.
           </p>
         )}
-        {members.map((member, index) => {
-          const key = member.id || String(index);
-          const isExpanded = expandedMembers.has(key);
+        {members.map(member => {
+          const isExpanded = expandedMembers.has(member.id);
           return (
           <div
-            key={key}
+            key={member.id}
             className="flex flex-col gap-1 p-2 border rounded dark:border-gray-700"
           >
             <div className="flex items-center gap-2">
@@ -69,12 +56,12 @@ export default function CrewEditor({ members, onChange }: CrewEditorProps) {
                 type="text"
                 placeholder="Nazwa"
                 value={member.name ?? ''}
-                onChange={(e) => handleNameChange(index, e.target.value)}
+                onChange={(e) => onChange(crew.renameMember(member.id, e.target.value))}
                 className="input-field flex-1 min-w-[140px]"
               />
               <button
                 type="button"
-                onClick={() => toggleMember(key)}
+                onClick={() => toggleMember(member.id)}
                 className="px-2 py-1 text-xs text-muted hover:text-foreground"
                 aria-label={isExpanded ? 'Zwiń' : 'Rozwiń'}
               >
@@ -86,7 +73,7 @@ export default function CrewEditor({ members, onChange }: CrewEditorProps) {
                 <div className="flex flex-wrap items-center gap-2 pl-1">
                   <select
                     value={member.diet}
-                    onChange={(e) => handleDietChange(index, e.target.value as Diet)}
+                    onChange={(e) => onChange(crew.changeDiet(member.id, e.target.value as Diet))}
                     className="input-field"
                   >
                     {(Object.keys(DIET_REGISTRY) as Diet[]).map((diet) => (
@@ -99,13 +86,13 @@ export default function CrewEditor({ members, onChange }: CrewEditorProps) {
                 <MemberExclusionsEditor
                   member={member}
                   onExclusionsChange={(excludedSupplies) =>
-                    onChange(updateCrewMember(members, index, { excludedSupplies }))
+                    onChange(crew.changeExclusions(member.id, excludedSupplies))
                   }
                 />
                 <div className="flex justify-end mt-1">
                   <button
                     type="button"
-                    onClick={() => { if (window.confirm('Usunąć członka załogi?')) removeMember(index); }}
+                    onClick={() => { if (window.confirm('Usunąć członka załogi?')) onChange(crew.removeMember(member.id)); }}
                     className="btn-remove px-2 py-1"
                     aria-label="Usuń członka załogi"
                   >
@@ -154,7 +141,7 @@ function MemberExclusionsEditor({ member, onExclusionsChange }: MemberExclusions
   const excluded = member.excludedSupplies ?? [];
   const excludedSet = new Set(excluded);
 
-  const filteredIngredients = supplyRepository.getIngredients()
+  const filteredIngredients = supplyCatalog.ingredients
     .filter(ing => !excludedSet.has(ing.id))
     .filter(ing => filter === '' || ing.name.toLowerCase().includes(filter.toLowerCase()));
 
@@ -205,7 +192,7 @@ function MemberExclusionsEditor({ member, onExclusionsChange }: MemberExclusions
           {excluded.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-0.5">
               {excluded.map(id => {
-                const supply = supplyRepository.getById(id);
+                const supply = supplyCatalog.getById(id);
                 return (
                   <span
                     key={id}

@@ -80,8 +80,8 @@ async function main() {
   if (!['all', 'properties', 'fuzz', 'mutation'].includes(values.engine)) throw new Error('Unknown engine');
   const seconds = Number(values.seconds);
   if (!Number.isFinite(seconds) || seconds < 1 || seconds > 86400) throw new Error('--seconds must be between 1 and 86400');
-  if (values.mutate && !/^(src\/model\/(?:cruise\/)?[\w-]+\.ts|src\/utils\/maxFlow\.ts)$/.test(values.mutate)) {
-    throw new Error('--mutate must name a model .ts file or src/utils/maxFlow.ts');
+  if (values.mutate && !/^(src\/model\/(?:cruise\/(?:mealPlan\/)?)?[\w-]+\.ts|src\/data\/cruiseRepository\.ts)$/.test(values.mutate)) {
+    throw new Error('--mutate must name a model .ts file or src/data/cruiseRepository.ts');
   }
   if (Number(process.versions.node.split('.')[0]) < 22) throw new Error('Node >=22 required');
   const output = path.resolve(root, values.output, `${new Date().toISOString().replaceAll(':', '-')}-${process.pid}`);
