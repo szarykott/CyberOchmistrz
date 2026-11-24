@@ -90,7 +90,7 @@ erDiagram
 ```
 
 - The immutable `Recipie` owns edits, portion scaling, and diet checks with a caller-supplied ingredient lookup. The catalog and cruise assignment snapshots share the `RecipieData` JSON shape. A snapshot can be edited independently of the catalog recipe.
-- An ingredient is a specialization of a supply with the same identity, not a second catalog entry. Supplies also include non-food products. `Supply.create` normalizes and validates one product. `SupplyCatalog.createSupply` also checks catalog names and IDs. `Supply.fromData` preserves stored IDs, and `toData()` exports a plain record.
+- An ingredient is a specialization of a supply with the same identity, not a second catalog entry. Supplies also include non-food products. `Supply.fromData` preserves stored IDs, and `toData()` exports a plain record.
 - Ingredient quantity is an embedded value containing a supply ID and an amount per person. It is not the ingredient catalog record itself.
 - `mealType` describes the recipe's suitable meal types; `mealSlot` places one assignment in a day's plan.
 - Valid new recipes have at least one ingredient quantity. Ingredient IDs should resolve to ingredient supplies; missing references and older snapshots can still occur in stored data. A recipe is confirmed vegetarian or vegan only when every ingredient resolves and has the corresponding property.

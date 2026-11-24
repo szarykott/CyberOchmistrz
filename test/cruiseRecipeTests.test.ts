@@ -13,7 +13,7 @@ describe('cruiseRecipeData', () => {
       const cruise = setupEmptyCruise();
       const recipeData = createTestRecipe('recipe-1', 'Test Recipe');
 
-      const updated = cruise.updateMealPlan(plan => plan.addRecipe({ day: 2, recipe: Recipie.create(recipeData), portions: 2, slot: MealType.DINNER }));
+      const updated = cruise.updateMealPlan(plan => plan.addRecipe({ day: 2, recipe: Recipie.fromData(recipeData), portions: 2, slot: MealType.DINNER }));
 
       expect(updated.mealPlan.days[1].recipes).toHaveLength(1);
       expect(updated.mealPlan.days[1].recipes[0]).toEqual(expect.objectContaining({
@@ -28,7 +28,7 @@ describe('cruiseRecipeData', () => {
       const cruise = setupEmptyCruise();
       const recipeData = createTestRecipe('recipe-1', 'Test Recipe');
 
-      const updated = cruise.updateMealPlan(plan => plan.addRecipe({ day: 2000, recipe: Recipie.create(recipeData), portions: 2, slot: MealType.DINNER }));
+      const updated = cruise.updateMealPlan(plan => plan.addRecipe({ day: 2000, recipe: Recipie.fromData(recipeData), portions: 2, slot: MealType.DINNER }));
 
       expect(cruise).toBe(updated);
     });
@@ -37,7 +37,7 @@ describe('cruiseRecipeData', () => {
       const cruise = setupEmptyCruise();
       const originalRecipeData = createTestRecipe('recipe-1', 'Original Recipe');
 
-      const updated = cruise.updateMealPlan(plan => plan.addRecipe({ day: 2, recipe: Recipie.create(originalRecipeData), portions: 2, slot: MealType.DINNER }));
+      const updated = cruise.updateMealPlan(plan => plan.addRecipe({ day: 2, recipe: Recipie.fromData(originalRecipeData), portions: 2, slot: MealType.DINNER }));
 
       // The cruise owns a detached snapshot.
       const recipeInCruise = updated.mealPlan.days[1].recipes[0].recipe;

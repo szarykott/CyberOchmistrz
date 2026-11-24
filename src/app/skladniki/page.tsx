@@ -52,12 +52,6 @@ export default function SuppliesPage() {
     <main className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl md:text-3xl font-bold">Składniki</h1>
-        <a
-          href="/skladniki/dodaj"
-          className="btn-primary"
-        >
-          Dodaj nowy produkt
-        </a>
       </div>
 
       {/* Filters Section */}

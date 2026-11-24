@@ -77,7 +77,7 @@ export const createCruiseWithRecipes = (
     for (const r of recipes) {
       cruise = cruise.updateMealPlan(plan => plan.addRecipe({
         day: parseInt(dayNum),
-        recipe: Recipie.create(r.recipeData ?? createTestRecipe(r.recipeId, r.recipeId)),
+        recipe: Recipie.fromData(r.recipeData ?? createTestRecipe(r.recipeId, r.recipeId)),
         portions: r.crewCount ?? crewMembers.length,
         slot: r.mealSlot ?? MealType.DINNER,
       }));

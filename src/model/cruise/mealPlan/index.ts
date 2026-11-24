@@ -134,13 +134,13 @@ export class MealPlan {
   addRecipe({ day, slot, recipe, portions }: {
     day: number; slot: MealType; recipe: Recipie; portions: number;
   }): MealPlan {
-    const snapshot = Recipie.create(recipe);
+    Recipie.requireIngredients(recipe.ingredients);
     return this.#with(produce(this.#days, draft => {
       const target = draft.find(entry => entry.dayNumber === day);
       if (target) target.recipes.push(castDraft({
         assignmentId: newId(),
         originalRecipeId: recipe.id,
-        recipe: snapshot,
+        recipe,
         crewCount: portions,
         mealSlot: slot,
       }));

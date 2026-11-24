@@ -29,13 +29,13 @@ npm test             # Jest test suite
 
 **CyberOchmistrz** ("Cyber Steward") is a tool for a ship's second officer (ochmistrz) to prepare provisions for sailing cruises. Core features:
 
-1. **Cookbook** (`/przepisy`) — Browse, add, edit recipes with ingredients, difficulty ratings, meal types
+1. **Cookbook** (`/przepisy`) — Browse and edit existing recipes with ingredients, difficulty ratings, meal types
 2. **Cruises** (`/rejsy`) — Create cruises (name, days, crew as tagged member list), assign recipes to each day via drag-and-drop with per-recipe portion count and meal slot, add extra supplies
 3. **Shopping list generation** — Aggregate all ingredients from assigned recipes (scaled by each recipe's `crewCount`) + additional supplies into a categorized shopping list with CSV export
 4. **Diet coverage check** — Per (day, mealSlot) max-flow analysis reports whether each meal feeds every crew member given their diet (omnivore / vegetarian / vegan) and per-member ingredient exclusions
-5. **Supplies catalog** (`/skladniki`) — Browse and add ingredients/supplies used in recipes
+5. **Supplies catalog** (`/skladniki`) — Browse ingredients/supplies used in recipes
 
-Static data (recipes, supplies) ships in JSON. Cruises persisted in `localStorage`. Deployed as static site to GitHub Pages with PWA support.
+Add catalog entries directly to `src/data/recipies.json` and `src/data/supplies.json`. Cruises persisted in `localStorage`. Deployed as static site to GitHub Pages with PWA support.
 
 ## Intended Usage and Platform Requirements
 
@@ -65,9 +65,9 @@ CyberOchmistrz/
 │   ├── app/                   # Next.js App Router (routes, layouts, pages)
 │   │   ├── layout.tsx         # Root layout: nav bar with links to 3 sections
 │   │   ├── page.tsx           # Landing page with hero + links
-│   │   ├── przepisy/          # /przepisy — recipe list, add, edit
+│   │   ├── przepisy/          # /przepisy — recipe list and editor
 │   │   ├── rejsy/             # /rejsy — cruise list/detail, add, edit
-│   │   └── skladniki/         # /skladniki — supplies catalog, add
+│   │   └── skladniki/         # /skladniki — supplies catalog
 │   ├── components/            # All React components (see below)
 │   │   └── AGENTS.md          # Component conventions for AI agents
 │   ├── data/                  # Repositories and static JSON catalogs
@@ -227,7 +227,7 @@ mutation sandboxes are ignored by Git.
 
 No state library (Redux, Zustand, etc.). Pattern:
 
-- **Static data:** Recipe and supply repositories read bundled JSON and return data synchronously. Recipes are immutable domain objects. Supply queries share an owned, immutable catalog and read-only views. Supply creation validates fields and checks the generated ID against the catalog before exporting JSON.
+- **Static data:** Recipe and supply repositories read bundled JSON and return data synchronously. Recipes are immutable domain objects. Supply queries share an owned, immutable catalog and read-only views.
 - **Persistent data:** `cruiseRepository` exposes asynchronous queries and writes. It uses `localStorage` in the browser and restores immutable `Cruise` instances before returning them.
 - **Restoration:** file imports and stored data are parsed as `unknown` and validated by `restoreCruise` in the cruise repository before use or persistence. Existing cruise IDs and recipe snapshots are preserved; new cruise IDs are UUIDs.
 - **Cruise state:** `Cruise` owns details and installs edits to `MealPlan`, `CruiseSupplies`, and `Crew`. Child operations return their own immutable values. Effective edits share untouched branches, and no-op edits return the original cruise. Forms apply drafts on save. Assignments expose immutable recipe snapshots and use identity handles for edits, moves, and removal. Cruise JSON serialization preserves the existing storage format. `shoppingList.aggregate(supplyCatalog)` derives quantities from the current cruise. The cruise provider applies changes in order and publishes each changed instance after a successful save.
@@ -238,7 +238,7 @@ No state library (Redux, Zustand, etc.). Pattern:
 ## Known Issues and Tech Debt
 
 1. **localStorage only** — No sync between devices, no backend
-2. **No online recipe/supply editing** — New items generate JSON for manual file merge
+2. **No online recipe/supply editing** — The existing recipe editor exports JSON for manual file updates
 3. **No individual day add/remove** — Cruise duration can be changed; shortening warns when it removes recipes
 4. **Typo in codebase** — "recipie" used consistently instead of "recipe" (in filenames, types, variables) — intentional per `.DotSettings` dictionary
 

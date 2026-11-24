@@ -24,11 +24,6 @@ export class Recipie {
     Object.freeze(this);
   }
 
-  static create(data: RecipieData): Recipie {
-    Recipie.#requireIngredients(data.ingredients);
-    return data instanceof Recipie ? data : new Recipie(data);
-  }
-
   static fromData(data: RecipieData): Recipie {
     return data instanceof Recipie ? data : new Recipie(data);
   }
@@ -39,10 +34,11 @@ export class Recipie {
       if (!type) throw new Error(`Nieprawidłowy rodzaj posiłku: ${value}`);
       return type;
     });
-    return Recipie.create({ ...data, mealType });
+    Recipie.requireIngredients(data.ingredients);
+    return Recipie.fromData({ ...data, mealType });
   }
 
-  static #requireIngredients(ingredients: readonly IngredientAmount[]): void {
+  static requireIngredients(ingredients: readonly IngredientAmount[]): void {
     if (ingredients.length === 0) throw new Error('Recipe must have at least one ingredient');
   }
 
@@ -63,7 +59,7 @@ export class Recipie {
   withChanges(changes: RecipieChanges): Recipie {
     const name = changes.name ?? this.name;
     const ingredients = changes.ingredients ?? this.ingredients;
-    Recipie.#requireIngredients(ingredients);
+    Recipie.requireIngredients(ingredients);
     const sameIngredients = ingredients === this.ingredients || (
       ingredients.length === this.ingredients.length && ingredients.every((item, index) =>
         item.id === this.ingredients[index].id && item.amount === this.ingredients[index].amount
@@ -97,7 +93,7 @@ export class Recipie {
 
   matchesDiet(diet: Diet, findIngredient: (id: string) => Ingredient | undefined): boolean {
     if (diet === 'omnivore') return true;
-    // Defense-in-depth: legacy snapshots from localStorage may predate the factory guard
+    // Defense-in-depth: legacy snapshots from localStorage may contain no ingredients
     if (this.ingredients.length === 0) return false;
     const flag = diet === 'vegan' ? 'isVegan' : 'isVegetarian';
     return this.ingredients.every(ingredient => findIngredient(ingredient.id)?.[flag] === true);

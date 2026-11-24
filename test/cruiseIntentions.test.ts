@@ -25,8 +25,8 @@ describe('Cruise intentions', () => {
 
   it('should move and edit the selected duplicate using a stale handle', () => {
     const initial = Cruise.createNew('Cruise', 2, makeCrewMembers(1))
-      .updateMealPlan(plan => plan.addRecipe({ day: 1, slot: MealType.DINNER, recipe: Recipie.create(recipe()), portions: 1 }))
-      .updateMealPlan(plan => plan.addRecipe({ day: 1, slot: MealType.DINNER, recipe: Recipie.create(recipe()), portions: 2 }));
+      .updateMealPlan(plan => plan.addRecipe({ day: 1, slot: MealType.DINNER, recipe: Recipie.fromData(recipe()), portions: 1 }))
+      .updateMealPlan(plan => plan.addRecipe({ day: 1, slot: MealType.DINNER, recipe: Recipie.fromData(recipe()), portions: 2 }));
     const [first, second] = menu(initial);
     const moved = initial.updateMealPlan(plan => plan.moveRecipe({ assignment: second, to: { day: 2, slot: MealType.SUPPER } }));
     const edited = moved.updateMealPlan(plan => plan.editAssignedRecipe({ assignment: second, changes: { name: 'Changed' } }));
@@ -39,7 +39,7 @@ describe('Cruise intentions', () => {
 
   it('should install only an edited plan from the same cruise', () => {
     const cruise = Cruise.createNew('Cruise', 2, makeCrewMembers(1))
-      .updateMealPlan(plan => plan.addRecipe({ day: 1, slot: MealType.DINNER, recipe: Recipie.create(recipe()), portions: 1 }));
+      .updateMealPlan(plan => plan.addRecipe({ day: 1, slot: MealType.DINNER, recipe: Recipie.fromData(recipe()), portions: 1 }));
     const [assignment] = menu(cruise);
     const detached = cruise.mealPlan.changePortions({ assignment, portions: 2 });
 
@@ -56,7 +56,7 @@ describe('Cruise intentions', () => {
   });
 
   it('should preserve identity for equal valid edits and reject empty ingredients', () => {
-    const cruise = Cruise.createNew('Cruise', 1, makeCrewMembers(1)).updateMealPlan(plan => plan.addRecipe({ day: 1, slot: MealType.DINNER, recipe: Recipie.create(recipe()), portions: 1 }));
+    const cruise = Cruise.createNew('Cruise', 1, makeCrewMembers(1)).updateMealPlan(plan => plan.addRecipe({ day: 1, slot: MealType.DINNER, recipe: Recipie.fromData(recipe()), portions: 1 }));
     const assignment = menu(cruise)[0];
     expect(cruise.updateMealPlan(plan => plan.editAssignedRecipe({ assignment, changes: { ingredients: assignment.recipe.ingredients.map(i => ({ ...i })) } }))).toBe(cruise);
     expect(cruise.updateMealPlan(plan => plan.changePortions({ assignment, portions: 1 }))).toBe(cruise);
@@ -68,7 +68,7 @@ describe('Cruise intentions', () => {
     const cruise = Cruise.createNew('Cruise', 3, makeCrewMembers(1), undefined, [
       { id: 'water', amount: 3, isPerPerson: false, isPerDay: false },
       { id: 'water', amount: 5, isPerPerson: true, isPerDay: false },
-    ]).updateMealPlan(plan => plan.addRecipe({ day: 2, slot: MealType.DINNER, recipe: Recipie.create(recipe()), portions: 1 }));
+    ]).updateMealPlan(plan => plan.addRecipe({ day: 2, slot: MealType.DINNER, recipe: Recipie.fromData(recipe()), portions: 1 }));
     expect(cruise.willLengthReductionRemoveRecipes(2)).toBe(false);
     expect(cruise.updateSupplies(supplies => supplies.changeScaling({ supply: cruise.supplies.entries[0], perPerson: false, perDay: false }))).toBe(cruise);
     expect(cruise.updateSupplies(supplies => supplies.changeScaling({ supply: cruise.supplies.entries[0], perPerson: true, perDay: false })).supplies.entries).toEqual([
@@ -77,8 +77,8 @@ describe('Cruise intentions', () => {
   });
   it('should insert before a target and ignore foreign or removed handles', () => {
     const cruise = Cruise.createNew('Cruise', 2, makeCrewMembers(1))
-      .updateMealPlan(plan => plan.addRecipe({ day: 1, slot: MealType.DINNER, recipe: Recipie.create(recipe()), portions: 1 }))
-      .updateMealPlan(plan => plan.addRecipe({ day: 2, slot: MealType.SUPPER, recipe: Recipie.create(recipe()), portions: 2 }));
+      .updateMealPlan(plan => plan.addRecipe({ day: 1, slot: MealType.DINNER, recipe: Recipie.fromData(recipe()), portions: 1 }))
+      .updateMealPlan(plan => plan.addRecipe({ day: 2, slot: MealType.SUPPER, recipe: Recipie.fromData(recipe()), portions: 2 }));
     const source = menu(cruise)[0];
     const target = menu(cruise, 2, MealType.SUPPER)[0];
     const moved = cruise.updateMealPlan(plan => plan.moveRecipe({ assignment: source, to: { day: 2, slot: MealType.SUPPER }, before: target }));
@@ -91,7 +91,7 @@ describe('Cruise intentions', () => {
   });
 
   it('should retain stable legacy handles and share unchanged data', () => {
-    const cruise = Cruise.createNew('Cruise', 1, makeCrewMembers(1)).updateMealPlan(plan => plan.addRecipe({ day: 1, slot: MealType.DINNER, recipe: Recipie.create(recipe()), portions: 1 }));
+    const cruise = Cruise.createNew('Cruise', 1, makeCrewMembers(1)).updateMealPlan(plan => plan.addRecipe({ day: 1, slot: MealType.DINNER, recipe: Recipie.fromData(recipe()), portions: 1 }));
     const data = JSON.parse(JSON.stringify(cruise));
     delete data.days[0].recipes[0].assignmentId;
     const first = restoreCruise(data);
@@ -112,8 +112,8 @@ describe('Cruise intentions', () => {
 
   it('should keep the same cruise when a move leaves slot order unchanged', () => {
     const cruise = Cruise.createNew('Cruise', 1, makeCrewMembers(1))
-      .updateMealPlan(plan => plan.addRecipe({ day: 1, slot: MealType.DINNER, recipe: Recipie.create(recipe()), portions: 1 }))
-      .updateMealPlan(plan => plan.addRecipe({ day: 1, slot: MealType.BREAKFAST, recipe: Recipie.create(recipe()), portions: 2 }));
+      .updateMealPlan(plan => plan.addRecipe({ day: 1, slot: MealType.DINNER, recipe: Recipie.fromData(recipe()), portions: 1 }))
+      .updateMealPlan(plan => plan.addRecipe({ day: 1, slot: MealType.BREAKFAST, recipe: Recipie.fromData(recipe()), portions: 2 }));
     const assignment = menu(cruise)[0];
     expect(cruise.updateMealPlan(plan => plan.moveRecipe({ assignment, to: { day: 1, slot: MealType.DINNER } }))).toBe(cruise);
   });
@@ -139,15 +139,15 @@ describe('Cruise intentions', () => {
     expect(Object.isFrozen(crew[0].excludedSupplies)).toBe(false);
     expect(updated.mealPlan.days).toBe(original.mealPlan.days);
     expect(updated.supplies.entries).toBe(original.supplies.entries);
-    const added = updated.updateMealPlan(plan => plan.addRecipe({ day: 1, slot: MealType.DINNER, recipe: Recipie.create(sourceRecipe), portions: 1 }));
+    const added = updated.updateMealPlan(plan => plan.addRecipe({ day: 1, slot: MealType.DINNER, recipe: Recipie.fromData(sourceRecipe), portions: 1 }));
     sourceRecipe.ingredients[0].amount = 5;
     expect(menu(added)[1].recipe.ingredients[0].amount).toBe(999);
   });
 
   it('should edit duplicate assignments independently and keep equal drafts unchanged', () => {
     const cruise = Cruise.createNew('Cruise', 1, makeCrewMembers(1))
-      .updateMealPlan(plan => plan.addRecipe({ day: 1, slot: MealType.DINNER, recipe: Recipie.create(recipe()), portions: 1 }))
-      .updateMealPlan(plan => plan.addRecipe({ day: 1, slot: MealType.DINNER, recipe: Recipie.create(recipe()), portions: 1 }));
+      .updateMealPlan(plan => plan.addRecipe({ day: 1, slot: MealType.DINNER, recipe: Recipie.fromData(recipe()), portions: 1 }))
+      .updateMealPlan(plan => plan.addRecipe({ day: 1, slot: MealType.DINNER, recipe: Recipie.fromData(recipe()), portions: 1 }));
     const [first, second] = menu(cruise);
     for (const changes of [{}, { name: first.recipe.name }, { ingredients: first.recipe.ingredients.map(item => ({ ...item })) }]) {
       const unchanged = cruise.updateMealPlan(plan => plan.editAssignedRecipe({ assignment: first, changes }));
@@ -241,9 +241,9 @@ describe('Cruise intentions', () => {
 
   it('should filter assignments by slot and reorder within a slot', () => {
     const cruise = Cruise.createNew('Cruise', 2, [])
-      .updateMealPlan(plan => plan.addRecipe({ day: 1, slot: MealType.DINNER, recipe: Recipie.create(recipe()), portions: 1 }))
-      .updateMealPlan(plan => plan.addRecipe({ day: 1, slot: MealType.BREAKFAST, recipe: Recipie.create(recipe()), portions: 2 }))
-      .updateMealPlan(plan => plan.addRecipe({ day: 1, slot: MealType.DINNER, recipe: Recipie.create(recipe()), portions: 3 }));
+      .updateMealPlan(plan => plan.addRecipe({ day: 1, slot: MealType.DINNER, recipe: Recipie.fromData(recipe()), portions: 1 }))
+      .updateMealPlan(plan => plan.addRecipe({ day: 1, slot: MealType.BREAKFAST, recipe: Recipie.fromData(recipe()), portions: 2 }))
+      .updateMealPlan(plan => plan.addRecipe({ day: 1, slot: MealType.DINNER, recipe: Recipie.fromData(recipe()), portions: 3 }));
     const [first, last] = menu(cruise);
     const breakfast = menu(cruise, 1, MealType.BREAKFAST)[0];
     expect(menu(cruise, 3)).toEqual([]);

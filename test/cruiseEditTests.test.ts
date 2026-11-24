@@ -61,8 +61,8 @@ describe('cruise edit functionality', () => {
       const recipe2 = createTestRecipe('recipe2', 'Recipe 2');
 
       cruise = cruise
-        .updateMealPlan(plan => plan.addRecipe({ day: 4, recipe: Recipie.create(recipe1), portions: 4, slot: MealType.DINNER }))
-        .updateMealPlan(plan => plan.addRecipe({ day: 5, recipe: Recipie.create(recipe2), portions: 4, slot: MealType.DINNER }));
+        .updateMealPlan(plan => plan.addRecipe({ day: 4, recipe: Recipie.fromData(recipe1), portions: 4, slot: MealType.DINNER }))
+        .updateMealPlan(plan => plan.addRecipe({ day: 5, recipe: Recipie.fromData(recipe2), portions: 4, slot: MealType.DINNER }));
 
       const result = cruise.willLengthReductionRemoveRecipes(3);
       expect(result).toBe(true);

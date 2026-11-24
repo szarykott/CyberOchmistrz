@@ -3,11 +3,11 @@
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import NewRecipeForm from '@/components/NewRecipeForm';
+import EditRecipeForm from '@/components/EditRecipeForm';
 import { recipieRepository } from '@/data/recipieRepository';
 import { Recipie } from '@/model/recipe';
 
-function EditRecipeForm(){
+function RecipeEditor(){
   const searchParams = useSearchParams();
   const recipeId = searchParams.get('id');
   const [recipe, setRecipe] = useState<Recipie | null>(null);
@@ -48,7 +48,7 @@ function EditRecipeForm(){
             </Link>
           </div>
         ) : (
-          <NewRecipeForm recipe={recipe} />
+          <EditRecipeForm key={recipe.id} recipe={recipe} />
         )}
       </main>
   );
@@ -57,7 +57,7 @@ function EditRecipeForm(){
 export default function EditRecipePage() {
   return (
     <Suspense>
-      <EditRecipeForm />
+      <RecipeEditor />
     </Suspense>
   );
 }

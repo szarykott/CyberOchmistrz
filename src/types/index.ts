@@ -13,12 +13,3 @@ export interface CruiseFormErrors {
   crewMembers: string;
   startDate: string;
 }
-
-export interface SupplyValidationErrors {
-  name: string;
-  unit: string;
-  category: string;
-  isVegetarian: string;
-  isVegan: string;
-  general: string;
-}

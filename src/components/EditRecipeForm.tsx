@@ -1,46 +1,29 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { supplyCatalog } from '@/data/supplyRepository';
 import { recipieRepository } from '@/data/recipieRepository';
 import IngredientListEditor from './IngredientListEditor';
-import { Recipie, MealType, IngredientAmount } from '@/model/recipe';
+import { Recipie, MealType, RecipieData } from '@/model/recipe';
 
-interface NewRecipeFormProps {
-  recipe?: Recipie;
+interface EditRecipeFormProps {
+  recipe: Recipie;
 }
 
-export default function NewRecipeForm({ recipe }: NewRecipeFormProps) {
-  const [recipeName, setRecipeName] = useState('');
-  const [description, setDescription] = useState('');
-  const [selectedMealTypes, setSelectedMealTypes] = useState<MealType[]>([MealType.DINNER]);
-  const [difficulty, setDifficulty] = useState(1);
-  const [ingredients, setIngredients] = useState<Array<{ id: string; amount: number }>>([{ id: '', amount: 0 }]);
-  const [instructions, setInstructions] = useState<string[]>(['']);
+export default function EditRecipeForm({ recipe }: EditRecipeFormProps) {
+  const [recipeName, setRecipeName] = useState(recipe.name);
+  const [description, setDescription] = useState(recipe.description);
+  const [selectedMealTypes, setSelectedMealTypes] = useState(recipe.mealType.slice());
+  const [difficulty, setDifficulty] = useState(recipe.difficulty);
+  const [ingredients, setIngredients] = useState(() => recipe.ingredients.map(item => ({ ...item })));
+  const [instructions, setInstructions] = useState(() => recipe.instructions.length ? recipe.instructions.slice() : ['']);
   const [jsonOutput, setJsonOutput] = useState('');
-  const [recipeId, setRecipeId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [developedBy, setDevelopedBy] = useState<string>('');
-  const [modifiedBy, setModifiedBy] = useState<string[]>([]);
-  const [newModifier, setNewModifier] = useState<string>('');
+  const [developedBy, setDevelopedBy] = useState(recipe.developedBy || '');
+  const modifiedBy = recipe.modifiedBy ?? [];
+  const [newModifier, setNewModifier] = useState('');
 
   const allIngredients = supplyCatalog.ingredients;
-
-  // Initialize form with existing recipe data if provided
-  useEffect(() => {
-    if (recipe) {
-      setRecipeName(recipe.name);
-      setDescription(recipe.description);
-      setSelectedMealTypes(recipe.mealType.slice());
-      setDifficulty(recipe.difficulty);
-      setIngredients(recipe.ingredients.length > 0 ? recipe.ingredients.map(ingredient => ({ ...ingredient })) : [{ id: '', amount: 0 }]);
-      setInstructions(recipe.instructions.length > 0 ? recipe.instructions.slice() : ['']);
-      setRecipeId(recipe.id);
-      setDevelopedBy(recipe.developedBy || '');
-      setModifiedBy(recipe.modifiedBy?.slice() || []);
-      setNewModifier('');
-    }
-  }, [recipe]);
 
   const toggleMealType = (type: MealType) => {
     if (selectedMealTypes.includes(type)) {
@@ -125,7 +108,7 @@ export default function NewRecipeForm({ recipe }: NewRecipeFormProps) {
     const allRecipies = recipieRepository.getAll();
     const isDuplicateName = allRecipies.some(r =>
       r.name.toLowerCase() === recipeName.trim().toLowerCase() &&
-      r.id !== recipeId
+      r.id !== recipe.id
     );
 
     if (isDuplicateName) {
@@ -133,40 +116,23 @@ export default function NewRecipeForm({ recipe }: NewRecipeFormProps) {
       return null;
     }
 
-    // Generate ID from name for new recipes, or use existing ID when editing
-    let finalId = recipeId;
-    if (!finalId) {
-      // Create slug from recipe name: lowercase, replace spaces with hyphens, remove special chars
-      finalId = recipeName.trim()
-        .toLowerCase()
-        .replace(/\s+/g, '-')
-        .replace(/[^\w-]/g, '');
-
-      // Check for duplicate ID
-      const isDuplicateId = allRecipies.some(r => r.id === finalId);
-      if (isDuplicateId) {
-        setErrorMessage(`Wystąpił błąd: wygenerowane ID już istnieje. Spróbuj zmienić nazwę.`);
-        return null;
-      }
-    }
-
     // Handle modifiedBy: append newModifier if provided
-    let finalModifiedBy: string[] | undefined = modifiedBy;
+    let finalModifiedBy: readonly string[] = modifiedBy;
     if (newModifier.trim()) {
-      finalModifiedBy = [...(modifiedBy || []), newModifier.trim()];
+      finalModifiedBy = [...modifiedBy, newModifier.trim()];
     }
 
-    const recipie = Recipie.create({
-      id: finalId,
+    const recipie: RecipieData = {
+      id: recipe.id,
       name: recipeName.trim(),
       description: description.trim(),
       mealType: mealTypes,
       difficulty: difficulty,
-      ingredients: filteredIngredients as IngredientAmount[],
+      ingredients: filteredIngredients,
       instructions: filteredInstructions,
       developedBy: developedBy.trim() || undefined,
       modifiedBy: finalModifiedBy
-    });
+    };
 
     const jsonString = JSON.stringify(recipie, null, 2);
     setJsonOutput(jsonString);
@@ -186,7 +152,7 @@ export default function NewRecipeForm({ recipe }: NewRecipeFormProps) {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dish, null, 2));
     const downloadAnchorNode = document.createElement('a');
     downloadAnchorNode.setAttribute("href", dataStr);
-    downloadAnchorNode.setAttribute("download", `${recipeName.trim() || 'new-recipe'}.json`);
+    downloadAnchorNode.setAttribute("download", `${recipeName.trim() || recipe.name}.json`);
     document.body.appendChild(downloadAnchorNode);
     downloadAnchorNode.click();
     downloadAnchorNode.remove();
@@ -316,25 +282,23 @@ export default function NewRecipeForm({ recipe }: NewRecipeFormProps) {
             />
           </div>
 
-          {recipe && modifiedBy.length > 0 && (
+          {modifiedBy.length > 0 && (
             <div className="mt-2">
               <label className="form-label">Poprzednie modyfikacje</label>
               <p className="text-sm text-muted-dark">{modifiedBy.join(', ')}</p>
             </div>
           )}
 
-          {recipe && (
-            <div className="mt-4">
+          <div className="mt-4">
             <label className="form-label">Zmodyfikował</label>
-              <input
-                type="text"
-                value={newModifier}
-                onChange={(e) => setNewModifier(e.target.value)}
-                className="input-simple"
-                placeholder="Imię i nazwisko nowej osoby modyfikującej"
-              />
-            </div>
-          )}
+            <input
+              type="text"
+              value={newModifier}
+              onChange={(e) => setNewModifier(e.target.value)}
+              className="input-simple"
+              placeholder="Imię i nazwisko nowej osoby modyfikującej"
+            />
+          </div>
         </div>
 
         {/* Action Buttons */}

@@ -54,15 +54,6 @@ describe('Supply', () => {
 });
 
 describe('SupplyCatalog', () => {
-  it('should validate across ingredient and non-ingredient views without changing the catalog', () => {
-    const draft = { name: 'Papier_toaletowy', unit: 'kg', category: 'inne',
-      isIngredient: true, isVegetarian: true, isVegan: true };
-    expect(supplyCatalog.createSupply(draft).errors.name).toContain('papier_toaletowy');
-    const result = supplyCatalog.createSupply({ ...draft, name: 'Ryż' });
-    expect(result.supply).toBeDefined();
-    expect(supplyCatalog.getById(result.supply!.id)).toBeUndefined();
-  });
-
   it('should protect catalog collections and entries from mutation', () => {
     const supplies = supplyCatalog.all;
     const original = supplies[0];

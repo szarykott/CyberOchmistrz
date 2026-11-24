@@ -166,7 +166,7 @@ class CruiseCommand implements fc.Command<CommandModel, CommandReal> {
     const slot = slots[this.index % slots.length];
     switch (this.operation) {
       case 'add':
-        real.cruise = previous.updateMealPlan(plan => plan.addRecipe({ day, slot, recipe: Recipie.create(this.recipe), portions: this.value }));
+        real.cruise = previous.updateMealPlan(plan => plan.addRecipe({ day, slot, recipe: Recipie.fromData(this.recipe), portions: this.value }));
         assert.deepEqual(json(real.cruise.mealPlan.getRecipeAssignments({ day, slot }).at(-1)?.recipe), json(this.recipe));
         assert.equal(real.cruise.mealPlan.getRecipeAssignments({ day, slot }).at(-1)?.portions, this.value);
         model.count++;

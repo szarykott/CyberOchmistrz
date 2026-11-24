@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import RecipeList from '@/components/RecipeList';
 import RecipeDetail from '@/components/RecipeDetail';
 import { recipieRepository } from '@/data/recipieRepository';
@@ -32,12 +31,6 @@ export default function RecipesPage() {
     <main className="container mx-auto px-4 py-8 relative flex flex-col h-screen">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl md:text-3xl font-bold">Książka Kucharska</h1>
-        <Link
-          href="/przepisy/dodaj"
-          className="btn-primary flex items-center"
-        >
-          Nowy przepis
-        </Link>
       </div>
 
       {/* Mobile View Controls */}

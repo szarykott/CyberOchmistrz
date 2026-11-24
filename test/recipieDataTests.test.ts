@@ -201,19 +201,19 @@ describe('recipieData', () => {
     });
   });
 
-  describe('Recipie.create', () => {
+  describe('recipe hydration', () => {
     it('should throw when ingredients array is empty', () => {
-      expect(() => Recipie.create(makeRawRecipe({ ingredients: [] }))).toThrow('Recipe must have at least one ingredient');
+      expect(() => Recipie.hydrateCatalog(makeRawRecipe({ ingredients: [] }))).toThrow('Recipe must have at least one ingredient');
     });
 
     it('should return the recipe when ingredients are present', () => {
       const data = makeRawRecipe({ ingredients: [{ id: 'czosnek', amount: 1 }] });
-      const recipe = Recipie.create(data);
+      const recipe = Recipie.fromData(data);
       expect(recipe.toJSON()).toEqual(data);
       expect(recipe.ingredients).not.toBe(data.ingredients);
       expect(Object.isFrozen(recipe.ingredients[0])).toBe(true);
       expect(Object.isFrozen(data.ingredients[0])).toBe(false);
-      expect(Recipie.create(recipe)).toBe(recipe);
+      expect(Recipie.fromData(recipe)).toBe(recipe);
     });
   });
 
