@@ -1,5 +1,5 @@
 import { restoreCruise } from '../src/data/cruiseRepository';
-import { Crew } from "../src/model/crew";
+import { Crew } from "../src/model/cruise/crew";
 import { Cruise } from '../src/model/cruise';
 import { Recipie, MealType } from '../src/model/recipe';
 import { createTestRecipe, makeCrewMembers } from './cruiseTestHarness';

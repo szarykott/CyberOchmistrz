@@ -1,6 +1,6 @@
 import { supplyCatalog } from '../src/data/supplyRepository';
 import { generateMarkdown } from '../src/utils/markdownExport';
-import { Diet, CrewMember } from '../src/model/crew';
+import { Diet, CrewMember } from '../src/model/cruise/crew';
 import { makeCrewMembers } from './cruiseTestHarness';
 import { CruiseDayRecipe, CruiseDay, Cruise } from '../src/model/cruise';
 import { Recipie, RecipieData, MealType } from '../src/model/recipe';

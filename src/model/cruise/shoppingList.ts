@@ -1,4 +1,4 @@
-import type { Crew } from "../crew";
+import type { Crew } from "./crew";
 import { Supply } from "../supply";
 import type { SupplyCatalog } from '../supply';
 import type { MealPlan } from "./mealPlan";

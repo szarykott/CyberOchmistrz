@@ -4,7 +4,7 @@ import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import DraggableRecipeItem from './DraggableRecipeItem';
 import { getMealCoverage, MealCoverage } from '../model/cruise/mealPlan/cruiseDietCoverage';
-import { Diet, DIET_REGISTRY, CrewMember } from '../model/crew';
+import { Diet, DIET_REGISTRY, CrewMember } from '../model/cruise/crew';
 import { supplyCatalog } from '../data/supplyRepository';
 import { declineUnit } from '../utils/polishDeclension';
 import { CruiseDayRecipe, RecipeAssignment } from '@/model/cruise';

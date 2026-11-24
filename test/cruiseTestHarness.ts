@@ -46,7 +46,7 @@ export const getStoredCruises = (): Cruise[] => {
 
 import { Cruise } from '../src/model/cruise';
 import { Recipie, IngredientAmount, RecipieData, MealType } from '../src/model/recipe';
-import { Diet, CrewMember } from '../src/model/crew';
+import { Diet, CrewMember } from '../src/model/cruise/crew';
 
 export const makeCrewMembers = (count: number, diet: Diet = 'omnivore'): CrewMember[] =>
   Array.from({ length: count }, (_, i) => ({ id: `crew-${i}`, diet, name: `Zaloga ${i + 1}` }));

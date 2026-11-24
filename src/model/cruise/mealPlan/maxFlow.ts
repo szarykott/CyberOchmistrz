@@ -1,5 +1,5 @@
 import type { CruiseDayRecipe } from './index';
-import type { CrewMember } from '../../crew'
+import type { CrewMember } from '../crew'
 
 /**
  * Checks if all member are fed

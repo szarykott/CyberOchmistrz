@@ -1,4 +1,4 @@
-import { CrewMember } from '../model/crew'
+import { CrewMember } from '../model/cruise/crew'
 
 export interface CruiseFormData {
   name: string;

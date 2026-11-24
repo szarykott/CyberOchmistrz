@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { Crew } from '../model/crew';
+import type { Crew } from '../model/cruise/crew';
 import { useRouter } from 'next/navigation';
 import CrewEditor from './CrewEditor';
 import { useCruise } from '@/app/rejsy/CruiseProvider';

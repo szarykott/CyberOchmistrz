@@ -1,6 +1,6 @@
 import { SupplyCatalog } from '../src/model/supply';
 import { getMealCoverage, getDayCoverage, getCruiseCoverage, countCrewWithTag, getActiveDietTags, canEat } from '../src/model/cruise/mealPlan/cruiseDietCoverage';
-import { Diet, CrewMember, DIET_REGISTRY } from '../src/model/crew';
+import { Diet, CrewMember, DIET_REGISTRY } from '../src/model/cruise/crew';
 import { CruiseDayRecipe, Cruise } from '../src/model/cruise';
 import { MealType, Recipie, RecipieData } from '../src/model/recipe';
 

@@ -80,6 +80,7 @@ CyberOchmistrz/
 │   │   ├── AGENTS.md          # Model layer rules for AI agents
 │   │   ├── cruise/            # Immutable cruise aggregate and domain operations
 │   │   │   ├── index.ts       # Cruise details, child installation, and JSON export
+│   │   │   ├── crew.ts            # Immutable crew, member operations by ID, and diet registry
 │   │   │   ├── mealPlan/
 │   │   │   │   ├── cruiseDietCoverage.ts # Meal and day diet coverage
 │   │   │   │   ├── maxFlow.ts # Crew allocation for diet coverage
@@ -87,7 +88,6 @@ CyberOchmistrz/
 │   │   │   ├── supplies.ts    # Additional supply amounts, scaling, and grouping
 │   │   │   ├── shoppingList.ts # Derived shopping list and CSV generation
 │   │   │   └── internals.ts   # Shared immutable copying and ID generation
-│   │   ├── crew.ts            # Immutable crew, member operations by ID, and diet registry
 │   │   ├── recipe.ts          # Immutable recipe, quantity scaling, and diet checks
 │   │   └── supply.ts          # Immutable Supply and catalog queries
 │   ├── types/                 # TypeScript interfaces and enums

@@ -1,5 +1,5 @@
 import { supplyCatalog } from '../src/data/supplyRepository';
-import { CrewMember } from '../src/model/crew';
+import { CrewMember } from '../src/model/cruise/crew';
 import { CruiseDayRecipe, CruiseDay, CruiseSupply, Cruise } from '../src/model/cruise';
 import { Recipie, IngredientAmount, RecipieData, MealType } from '../src/model/recipe';
 import { AmountSource } from '../src/model/cruise/shoppingList';

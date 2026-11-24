@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { cruiseRepository } from '../data/cruiseRepository';
 import { useRouter } from 'next/navigation';
-import { Crew } from '../model/crew';
+import { Crew } from '../model/cruise/crew';
 import { Cruise } from '../model/cruise'
 import CrewEditor from './CrewEditor';
 

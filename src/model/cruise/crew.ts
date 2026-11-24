@@ -1,4 +1,4 @@
-import { newId, owned } from './cruise/internals';
+import { newId, owned } from './internals';
 
 export interface CrewMember {
   readonly id: string;

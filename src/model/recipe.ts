@@ -1,4 +1,4 @@
-import type { Diet } from './crew';
+import type { Diet } from './cruise/crew';
 import { owned } from './cruise/internals';
 import type { Ingredient } from './supply';
 

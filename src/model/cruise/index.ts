@@ -1,4 +1,4 @@
-import { Crew, type CrewMember } from "../crew";
+import { Crew, type CrewMember } from "./crew";
 import { newId } from "./internals";
 import { MealPlan, type CruiseDayData, type CruiseDay } from "./mealPlan";
 import { ShoppingList } from "./shoppingList";

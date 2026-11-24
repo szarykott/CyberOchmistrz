@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { DIET_REGISTRY, type Crew, type CrewMember, type Diet } from '../model/crew';
+import { DIET_REGISTRY, type Crew, type CrewMember, type Diet } from '../model/cruise/crew';
 import { supplyCatalog } from '../data/supplyRepository';
 
 interface CrewEditorProps {

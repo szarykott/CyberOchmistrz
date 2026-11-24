@@ -1,5 +1,5 @@
 import type { SupplyCatalog } from "../../supply";
-import type { CrewMember, Diet } from "../../crew";
+import type { CrewMember, Diet } from "../crew";
 import { CrewRecipeAllocationChecker } from "./maxFlow";
 import type { Cruise, CruiseDayRecipe } from "..";
 import { MealType, type Recipie } from "../../recipe";

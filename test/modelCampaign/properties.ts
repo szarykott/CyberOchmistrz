@@ -3,7 +3,7 @@ import { supplyCatalog } from '../../src/data/supplyRepository';
 import assert from 'node:assert/strict';
 import fc from 'fast-check';
 import { Cruise, CruiseDayRecipe } from '../../src/model/cruise';
-import { Crew, CrewMember, Diet } from '../../src/model/crew';
+import { Crew, CrewMember, Diet } from '../../src/model/cruise/crew';
 import { Recipie, MealType, RecipieData } from '../../src/model/recipe';
 import { canEat, getMealCoverage } from '../../src/model/cruise/mealPlan/cruiseDietCoverage';
 import { CrewRecipeAllocationChecker } from '../../src/model/cruise/mealPlan/maxFlow';

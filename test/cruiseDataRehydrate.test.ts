@@ -1,7 +1,7 @@
 import { restoreCruise } from '../src/data/cruiseRepository';
 import { CruiseDayRecipe, Cruise } from '../src/model/cruise';
 import { Recipie, RecipieData, MealType } from '../src/model/recipe';
-import { Diet, CrewMember } from '../src/model/crew';
+import { Diet, CrewMember } from '../src/model/cruise/crew';
 
 const makeRecipe = (id: string): RecipieData =>
   ({

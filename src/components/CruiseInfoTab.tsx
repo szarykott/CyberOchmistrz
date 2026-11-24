@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { cruiseRepository } from '../data/cruiseRepository';
 import { useRouter } from 'next/navigation';
-import { DIET_REGISTRY, CrewMember } from '../model/crew';
+import { DIET_REGISTRY, CrewMember } from '../model/cruise/crew';
 import { supplyCatalog } from '../data/supplyRepository';
 import { useCruise } from '@/app/rejsy/CruiseProvider';
 

@@ -1,4 +1,4 @@
-import { Crew } from "../src/model/crew";
+import { Crew } from "../src/model/cruise/crew";
 import { Recipie } from "../src/model/recipe";
 import { MealType } from '../src/model/recipe';
 import { makeCrewMembers, createTestRecipe } from './cruiseTestHarness';

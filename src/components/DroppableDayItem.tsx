@@ -4,7 +4,7 @@ import { supplyCatalog } from '../data/supplyRepository';
 
 import { useDroppable } from '@dnd-kit/core';
 import { getMealCoverage, MealCoverage } from '../model/cruise/mealPlan/cruiseDietCoverage';
-import { CrewMember } from '../model/crew'
+import { CrewMember } from '../model/cruise/crew'
 import { CruiseDayRecipe } from '@/model/cruise';
 import { MealType } from '@/model/recipe';
 
